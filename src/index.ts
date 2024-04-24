@@ -67,6 +67,14 @@ export interface HandlerPayment {
 }
 
 /**
+ * 支付方式处理函数
+ */
+export interface HandlerPaymentMethods {
+    (order: GameOrder, options: { params: Record<string, any>, method: any }, callback: HandlerResult): void
+}
+
+
+/**
  * 支付方式获取函数
  */
 export interface GetPayMethods {
@@ -352,7 +360,7 @@ export class CoreSDK {
                 this._get_authenticate(params, (users) => {
                     // 认证完成追踪
                     this.PushEvent("login.authenticate", users)
-                    this._login(users, (info) => {
+                    this._login(users, info => {
                         const user: User = {
                             sdk: info.user,
                             channel: users.channel ?? info.user,
@@ -365,7 +373,7 @@ export class CoreSDK {
                         callback({
                             code: CodeSuccess,
                             trigger: "login.sdk",
-                            payload: {user, options: info.options},
+                            payload: user
                         })
                     }, callback)
                 }, callback)
@@ -594,7 +602,7 @@ export class PlatformSDK extends CoreSDK {
      * 支付方式
      * @protected
      */
-    protected _payment_handlers: Record<string, HandlerPayment> = {}
+    protected _payment_handlers: Record<string, HandlerPaymentMethods> = {}
 
 
     /**
@@ -623,7 +631,7 @@ export class PlatformSDK extends CoreSDK {
             if (!handler) {
                 callback(result)
             }
-            handler(order, {params, result: result.payload}, callback)
+            handler(order, {params, method: result.payload}, callback)
         })
 
 
