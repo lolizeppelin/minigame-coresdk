@@ -70,7 +70,7 @@ export interface HandlerPayment {
  * 支付方式处理函数
  */
 export interface HandlerPaymentMethods {
-    (order: GameOrder, options: { params: Record<string, any>, method: any }, callback: HandlerResult): void
+    (order: GameOrder, options: { params: Record<string, any>, info: any }, callback: HandlerResult): void
 }
 
 
@@ -79,13 +79,6 @@ export interface HandlerPaymentMethods {
  */
 export interface GetPayMethods {
     (order: GameOrder, params: Record<string, any>, handler: HandlerResult): void
-}
-
-/**
- * 初始化函数
- */
-export interface Initialization {
-    (callback: HandlerResult): void
 }
 
 /**
@@ -275,6 +268,32 @@ export function LoadVersion(version: string): VersionInfo | null {
     return {major, minor, patch}
 }
 
+/**
+ * 尝试从result中提取出文本
+ * @param result
+ * @param prefix
+ */
+export function ResultMessage(result: Result, prefix?: string): string {
+    prefix = prefix ?? result.code === 0 ? "result success" : "result failed"
+    let payload = ""
+    if (typeof result.payload === 'string') {
+        payload = result.payload
+    } else if (result.payload === null || result.payload === undefined) {
+        payload = ""
+    } else {
+        try {
+            payload = JSON.stringify(payload)
+        } catch {
+            try {
+                payload = result.payload.toString()
+            } catch {
+                payload = ""
+            }
+        }
+    }
+    return `${ prefix }, trigger: '${ result.trigger }', payload: '${ payload }'`
+}
+
 
 /*-------------------- 类 --------------------*/
 
@@ -283,15 +302,47 @@ export function LoadVersion(version: string): VersionInfo | null {
  */
 export class CoreSDK {
 
-    protected _user: User | null = null;
-    // @ts-ignore
+    /**
+     * 登录
+     * @protected
+     */
+        // @ts-ignore
     protected _login: SDKLogin
-    // @ts-ignore
+    /**
+     * 认证
+     * @protected
+     */
+        // @ts-ignore
     protected _get_authenticate: Authenticate
+    /**
+     * 获取支付方式
+     * @protected
+     */
+        // @ts-ignore
+    protected _get_payment_methods: GetPayMethods
 
+    /**
+     * 支付方式
+     * @protected
+     */
+    protected _payment_handlers: Record<string, HandlerPaymentMethods> = {}
+
+    /**
+     * 初始化接口列表
+     */
     protected initialization: Promise<Result>[] = []
 
+    /**
+     * 追踪器
+     * @private
+     */
     private readonly _trackers: Record<string, Tracker> = {};
+
+    /**
+     * 登录用户信息
+     * @protected
+     */
+    protected _user: User | null = null;
 
     /**
      * 获取用户信息
@@ -310,18 +361,13 @@ export class CoreSDK {
         return this._user === null
     }
 
-    protected Initialize(...initializer: Initialization[]) {
-        initializer.forEach((f) => {
-            const p = new Promise<Result>(resolve => {
-                f(result => {
-                    resolve(result)
-                })
-            })
+    protected Initialize(...initializers: Promise<Result>[]) {
+        initializers.forEach(p => {
             this.initialization.push(p)
         })
     }
 
-    async WaitInit(): Promise<Results> {
+    protected async WaitInit(): Promise<Results> {
         if (this.initialization.length === 0) {
             return new Promise<Results>(resolve => {
                 resolve(NewResults("initializer"))
@@ -329,6 +375,7 @@ export class CoreSDK {
         }
         return Promise.all(this.initialization).then(
             results => {
+                console.log("core sdk initialized")
                 return NewResults("initializer", results)
             }
         )
@@ -379,6 +426,38 @@ export class CoreSDK {
                 }, callback)
             }
         )
+    }
+
+    /* -------支付--------- */
+
+    /**
+     * 支付
+     * @param order
+     * @param params
+     * @param callback
+     */
+    Pay(order: GameOrder, params: Record<string, any>, callback: HandlerResult) {
+
+        if (this.authenticated) {
+            callback({
+                code: ErrCodeUnAuthenticate,
+                trigger: "already.login",
+                payload: this.user,
+            })
+            return
+        }
+        this._get_payment_methods(order, params, (result: Result) => {
+            if (result.code !== 0) {
+                callback(result)
+                return
+            }
+            const trigger = result.trigger
+            const handler = this._payment_handlers[trigger]
+            if (!handler) {
+                callback(result)
+            }
+            handler(order, {params, info: result.payload}, callback)
+        })
     }
 
 
@@ -535,107 +614,5 @@ export class CoreSDK {
               callback?: HandlerResults): void {
         this.handlerTrace("RoleEvent", true, {role, event, params}, callback)
     }
-
-}
-
-/**
- * 渠道SDK
- */
-export class ChannelSDK extends CoreSDK {
-
-    /**
-     * sdk下单
-     * @protected
-     */
-        // @ts-ignore
-    protected _sdk_payment_order: HandlerPayment
-
-    /**
-     * 渠道下单
-     * @protected
-     */
-        // @ts-ignore
-    protected _channel_payment_order: HandlerPayment
-
-
-    /**
-     * 渠道支付
-     * @param order
-     * @param params
-     * @param callback
-     */
-    Pay(order: GameOrder, params: Record<string, any>, callback: HandlerResult) {
-        if (this.authenticated) {
-            callback({
-                code: CodeSuccess,
-                trigger: "already.login",
-                payload: this.user,
-            })
-            return
-        }
-
-
-        this._sdk_payment_order(order, params, (result: Result) => {
-            if (result.code !== 0) {
-                callback(result)
-                return
-            }
-            this._channel_payment_order(order, result.payload, callback)
-        })
-    }
-
-}
-
-/**
- * 平台SDK
- */
-export class PlatformSDK extends CoreSDK {
-
-    /**
-     * 获取支付方式
-     * @protected
-     */
-        // @ts-ignore
-    protected _get_payment_methods: GetPayMethods
-
-    /**
-     * 支付方式
-     * @protected
-     */
-    protected _payment_handlers: Record<string, HandlerPaymentMethods> = {}
-
-
-    /**
-     * 平台支付
-     * @param order
-     * @param params
-     * @param callback
-     */
-    Pay(order: GameOrder, params: Record<string, any>, callback: HandlerResult) {
-
-        if (this.authenticated) {
-            callback({
-                code: ErrCodeUnAuthenticate,
-                trigger: "already.login",
-                payload: this.user,
-            })
-            return
-        }
-        this._get_payment_methods(order, params, (result: Result) => {
-            if (result.code !== 0) {
-                callback(result)
-                return
-            }
-            const trigger = result.trigger
-            const handler = this._payment_handlers[trigger]
-            if (!handler) {
-                callback(result)
-            }
-            handler(order, {params, method: result.payload}, callback)
-        })
-
-
-    }
-
 
 }
