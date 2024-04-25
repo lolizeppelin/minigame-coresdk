@@ -1,4 +1,4 @@
-// eslint-disable-next-line max-classes-per-file
+// eslint-disable-next-line import/no-extraneous-dependencies
 import {
     GameOrder, GameRole, HandlerResult, HandlerResults,
     Result, Results, Tracker, User, UserInfo, VersionInfo
@@ -268,6 +268,42 @@ export function LoadVersion(version: string): VersionInfo | null {
     return {major, minor, patch}
 }
 
+
+/**
+ *
+ * @param v1
+ * @param v2
+ * @constructor
+ */
+export function CmpVer(v1: VersionInfo, v2: VersionInfo): -1 | 0 | 1 {
+
+    if (v1.major > v2.major) {
+        return 1;
+    }
+    if (v1.major < v2.major) {
+        return -1;
+    }
+    // If major versions are equal, compare minor versions
+    if (v1.minor > v2.minor) {
+        return 1;
+    }
+    if (v1.minor < v2.minor) {
+        return -1;
+    }
+
+    // If minor versions are equal, compare patch versions
+    if (v1.patch > v2.patch) {
+        return 1;
+    }
+    if (v1.patch < v2.patch) {
+        return -1;
+    }
+    // If all versions are equal, return 0
+    return 0;
+
+}
+
+
 /**
  * 尝试从result中提取出文本
  * @param result
@@ -416,6 +452,8 @@ export class CoreSDK {
                         }
                         // 用户登录追踪
                         this.UserLogin(user)
+                        // 重上报调用
+                        this.RetryReport({user: user})
                         this._user = user
                         callback({
                             code: CodeSuccess,
@@ -471,6 +509,19 @@ export class CoreSDK {
     RegTracker(name: string, tracker: Tracker) {
         this._trackers[name] = tracker
     }
+
+    /**
+     * 重上报触发
+     * @param payload
+     * @constructor
+     */
+    RetryReport(payload: { user?: User, role?: GameRole }) {
+        Object.keys(this._trackers).forEach(key => {
+            const tracker = this._trackers[key]
+            tracker.Retry(payload)
+        })
+    }
+
 
     private handlerTrace(method: string, authenticated: boolean,
                          options: Record<string, any>, callback?: HandlerResults) {

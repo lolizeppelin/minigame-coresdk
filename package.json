@@ -1,6 +1,6 @@
 {
   "name": "minigame-coresdk",
-  "version": "0.3.0",
+  "version": "0.3.3",
   "private": false,
   "description": "minigame sdk core libs",
   "main": "dist/index.js",
@@ -27,7 +27,7 @@
   "license": "MIT",
   "homepage": "https://github.com/lolizeppelin/minigame-coresdk",
   "publishConfig": {
-    "registry": "https://registry.npmjs.com/"
+    "registry": "http://10.20.0.6:7999/repository/npm-private/"
   },
   "dependencies": {
     "js-sha1": "0.7.0",
