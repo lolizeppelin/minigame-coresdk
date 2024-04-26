@@ -625,11 +625,10 @@ export class CoreSDK {
 
     /**
      * 角色创建追踪
-     * @param user
      * @param role
      * @param callback
      */
-    RoleCreate(user: User, role: GameRole, callback?: HandlerResults): void {
+    RoleCreate(role: GameRole, callback?: HandlerResults): void {
         this.handlerTrace("RoleCreate", true, {role}, callback)
     }
 
@@ -675,7 +674,89 @@ export class CoreSDK {
 export class BaseTracker {
 
     // @ts-ignore
-    protected readonly name: string
+    protected name: string
+
+    /**
+     * 无用户事件
+     * @protected
+     */
+    protected _event_handlers: Record<string,
+        (payload: {
+            event: string;
+            params: Record<string, any>;
+        }, callback: HandlerResult) => void> = {}
+
+    /**
+     * 用户事件
+     * @protected
+     */
+    protected _user_event_handlers: Record<string,
+        (payload: {
+            event: string;
+            user: User;
+            params: Record<string, any>;
+        }, callback: HandlerResult) => void> = {}
+
+    /**
+     * 角色事件
+     * @protected
+     */
+    protected _role_event_handlers: Record<string, (payload: {
+        event: string;
+        user: User;
+        role: GameRole;
+        params: Record<string, any> | null;
+    }, callback: HandlerResult) => void> = {}
+
+    /**
+     * 注册响应事件
+     * @param events
+     * @constructor
+     */
+    RegEvent(events: {
+        event?: {
+            event: string;
+            handler: (payload: {
+                event: string;
+                params: Record<string, any>;
+            }, callback: HandlerResult) => void
+        };
+        user?: {
+            event: string;
+            handler: (payload: {
+                event: string;
+                user: User;
+                params: Record<string, any>;
+            }, callback: HandlerResult) => void;
+        };
+        role?: {
+            event: string;
+            handler: (payload: {
+                event: string;
+                user: User;
+                role: GameRole;
+                params: Record<string, any> | null;
+            }, callback: HandlerResult) => void;
+        };
+    }): void {
+        if (events.event) {
+            this._event_handlers[events.event.event] = events.event.handler
+        }
+        if (events.user) {
+            this._user_event_handlers[events.user.event] = events.user.handler
+        }
+        if (events.role) {
+            this._role_event_handlers[events.role.event] = events.role.handler
+        }
+    }
+
+    /**
+     * 触发器名
+     * @constructor
+     */
+    get trigger(): string {
+        return this.name
+    }
 
     /* eslint-disable */
 
@@ -688,6 +769,12 @@ export class BaseTracker {
         event: string;
         params: Record<string, any>,
     }, callback: HandlerResult): void {
+        const handler = this._event_handlers[payload.event]
+        if (!handler) {
+            callback({code: CodeSuccess, trigger: this.name, payload: null})
+            return
+        }
+        handler(payload, callback)
 
     }
 
@@ -708,7 +795,12 @@ export class BaseTracker {
 
     UserEvent(payload: { event: string, user: User, params: Record<string, any> },
               callback: HandlerResult): void {
-        callback({code: CodeSuccess, trigger: this.name, payload: null})
+        const handler = this._user_event_handlers[payload.event]
+        if (!handler) {
+            callback({code: CodeSuccess, trigger: this.name, payload: null})
+            return
+        }
+        handler(payload, callback)
     }
 
 
@@ -735,7 +827,13 @@ export class BaseTracker {
 
     RoleEvent(payload: { event: string, user: User, role: GameRole, params: Record<string, any> | null },
               callback: HandlerResult): void {
-        callback({code: CodeSuccess, trigger: this.name, payload: null})
+
+        const handler = this._role_event_handlers[payload.event]
+        if (!handler) {
+            callback({code: CodeSuccess, trigger: this.name, payload: null})
+            return
+        }
+        handler(payload, callback)
     }
 
     /* eslint-disable */
