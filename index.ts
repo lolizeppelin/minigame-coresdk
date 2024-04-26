@@ -476,11 +476,11 @@ export class CoreSDK {
      */
     Pay(order: GameOrder, params: Record<string, any>, callback: HandlerResult) {
 
-        if (this.authenticated) {
+        if (!this.authenticated) {
             callback({
                 code: ErrCodeUnAuthenticate,
-                trigger: "already.login",
-                payload: this.user,
+                trigger: "user.null",
+                payload: "not login",
             })
             return
         }
@@ -666,4 +666,77 @@ export class CoreSDK {
         this.handlerTrace("RoleEvent", true, {role, event, params}, callback)
     }
 
+}
+
+
+/**
+ * 空Tracker
+ */
+export class BaseTracker {
+
+    // @ts-ignore
+    protected readonly name: string
+
+    /* eslint-disable */
+
+    Retry(payload: { user?: User, role?: GameRole }): void {
+
+    }
+
+
+    PushEvent(payload: {
+        event: string;
+        params: Record<string, any>,
+    }, callback: HandlerResult): void {
+
+    }
+
+
+    UserCreate(payload: { user: User }, callback: HandlerResult): void {
+        callback({code: CodeSuccess, trigger: this.name, payload: null})
+    }
+
+
+    UserLogin(payload: { user: User }, callback: HandlerResult): void {
+        callback({code: CodeSuccess, trigger: this.name, payload: null})
+    }
+
+
+    UserLogout(payload: { user: User, role: GameRole | null }, callback: HandlerResult): void {
+    }
+
+
+    UserEvent(payload: { event: string, user: User, params: Record<string, any> },
+              callback: HandlerResult): void {
+        callback({code: CodeSuccess, trigger: this.name, payload: null})
+    }
+
+
+    RoleLogin(payload: { user: User, role: GameRole }, callback: HandlerResult): void {
+        callback({code: CodeSuccess, trigger: this.name, payload: null})
+    }
+
+
+    RoleCreate(payload: { user: User, role: GameRole }, callback: HandlerResult): void {
+        callback({code: CodeSuccess, trigger: this.name, payload: null})
+    }
+
+
+    RoleUpLevel(payload: { user: User, role: GameRole, level: number }, callback: HandlerResult): void {
+        callback({code: CodeSuccess, trigger: this.name, payload: null})
+    }
+
+
+    RoleRecharged(payload: { user: User, role: GameRole, order: GameOrder },
+                  callback: HandlerResult): void {
+        callback({code: CodeSuccess, trigger: this.name, payload: null})
+    }
+
+
+    RoleEvent(payload: { event: string, user: User, role: GameRole, params: Record<string, any> | null },
+              callback: HandlerResult): void {
+        callback({code: CodeSuccess, trigger: this.name, payload: null})
+    }
+
+    /* eslint-disable */
 }
