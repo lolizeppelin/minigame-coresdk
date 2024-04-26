@@ -1,3 +1,5 @@
+// eslint-disable-next-line max-classes-per-file
+import 'url-search-params-polyfill';
 // eslint-disable-next-line import/no-extraneous-dependencies
 import {
     GameOrder, GameRole, HandlerResult, HandlerResults,
@@ -144,6 +146,38 @@ export function NewResults(trigger: string, results?: Result[]) {
     })
 
     return resp
+}
+
+/**
+ * url query解析方法
+ * @param query
+ */
+function ParseQuery(query?: string): Record<string, string> {
+    if (!query) return {}
+    const parameters = new URLSearchParams(query);
+    const m: Record<string, string> = {}
+    parameters.forEach((v, k) => {
+        m[k] = v
+    })
+    return m
+}
+
+/**
+ * url query 生成方法
+ * @param data
+ * @constructor
+ */
+function BuildQuery(data?: Record<string, string>): string {
+    if (!data) return ""
+    const parameters = new URLSearchParams();
+    parameters.forEach((v, k) => {
+        parameters.set(k, v);
+    })
+    Object.keys(data).forEach(k => {
+        parameters.set(k, data[k]);
+    })
+    parameters.sort();
+    return parameters.toString()
 }
 
 /**
