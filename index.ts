@@ -152,7 +152,7 @@ export function NewResults(trigger: string, results?: Result[]) {
  * url query解析方法
  * @param query
  */
-function ParseQuery(query?: string): Record<string, string> {
+export function ParseQuery(query?: string): Record<string, string> {
     if (!query) return {}
     const parameters = new URLSearchParams(query);
     const m: Record<string, string> = {}
@@ -167,7 +167,7 @@ function ParseQuery(query?: string): Record<string, string> {
  * @param data
  * @constructor
  */
-function BuildQuery(data?: Record<string, string>): string {
+export function BuildQuery(data?: Record<string, string>): string {
     if (!data) return ""
     const parameters = new URLSearchParams();
     parameters.forEach((v, k) => {
@@ -428,7 +428,7 @@ export class CoreSDK {
      * 确认是否登录
      */
     get authenticated(): boolean {
-        return this._user === null
+        return this._user !== null
     }
 
     protected Initialize(...initializers: Promise<Result>[]) {
@@ -445,7 +445,6 @@ export class CoreSDK {
         }
         return Promise.all(this.initialization).then(
             results => {
-                console.log("core sdk initialized")
                 return NewResults("initializer", results)
             }
         )
@@ -528,7 +527,7 @@ export class CoreSDK {
             if (!handler) {
                 callback(result)
             }
-            handler(order, {params, info: result.payload}, callback)
+            handler.call(this, order, {params, info: result.payload}, callback)
         })
     }
 
@@ -586,7 +585,7 @@ export class CoreSDK {
                     })
                     return
                 }
-                fn(options, (res: Result) => resolve(res))
+                fn.call(tracker, options, (res: Result) => resolve(res))
             }))
         })
         if (promises.length <= 0) {
@@ -707,8 +706,20 @@ export class CoreSDK {
  */
 export class BaseTracker {
 
-    // @ts-ignore
-    protected name: string
+    private readonly name: string
+
+    constructor(name: string) {
+        this.name = name
+    }
+
+    /**
+     * 触发器名
+     * @constructor
+     */
+    get trigger(): string {
+        return this.name
+    }
+
 
     /**
      * 无用户事件
@@ -784,14 +795,6 @@ export class BaseTracker {
         }
     }
 
-    /**
-     * 触发器名
-     * @constructor
-     */
-    get trigger(): string {
-        return this.name
-    }
-
     /* eslint-disable */
 
     Retry(payload: { user?: User, role?: GameRole }): void {
@@ -808,7 +811,7 @@ export class BaseTracker {
             callback({code: CodeSuccess, trigger: this.name, payload: null})
             return
         }
-        handler(payload, callback)
+        handler.call(this, payload, callback)
 
     }
 
@@ -834,7 +837,7 @@ export class BaseTracker {
             callback({code: CodeSuccess, trigger: this.name, payload: null})
             return
         }
-        handler(payload, callback)
+        handler.call(this, payload, callback)
     }
 
 
@@ -867,7 +870,7 @@ export class BaseTracker {
             callback({code: CodeSuccess, trigger: this.name, payload: null})
             return
         }
-        handler(payload, callback)
+        handler.call(this, payload, callback)
     }
 
     /* eslint-disable */
