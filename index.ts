@@ -864,7 +864,6 @@ export class BaseTracker {
 
     RoleEvent(payload: { event: string, user: User, role: GameRole, params: Record<string, any> | null },
               callback: HandlerResult): void {
-
         const handler = this._role_event_handlers[payload.event]
         if (!handler) {
             callback({code: CodeSuccess, trigger: this.name, payload: null})
