@@ -7,6 +7,10 @@ import {
 } from "minigame-typings";
 import { Md5 } from "ts-md5";
 import { sha1 } from "js-sha1";
+import log from 'loglevel'
+
+
+log.setLevel("error", false)
 
 /*-------------------- 常量 --------------------*/
 
@@ -57,6 +61,11 @@ export const ErrCodeParameters = 13
  * 对象未找到错误
  */
 export const ErrCodeNotFound = 14
+
+/**
+ *
+ */
+export const ErrCodeHandlerNotFound = 15
 
 
 /*-------------------- 接口 --------------------*/
@@ -116,8 +125,10 @@ function format(input: number, padLength: number): string {
  * 空handler
  * @param result
  */
-// eslint-disable-next-line @typescript-eslint/no-empty-function
 export function NoneHandlerResults(result: Results) {
+    /**
+     * empty
+     */
 }
 
 /**
@@ -237,7 +248,7 @@ export function UnixNow(): number {
  */
 export function DateTimeNow(): string {
     const date = new Date();
-    return `${ format(date.getFullYear(), 4) }-${ format(date.getMonth() + 1, 2) }-${ format(date.getDate(), 2) } ${ format(date.getHours(), 2) }:${ format(date.getMinutes(), 2) }:${ format(date.getSeconds(), 2) }`;
+    return `${format(date.getFullYear(), 4)}-${format(date.getMonth() + 1, 2)}-${format(date.getDate(), 2)} ${format(date.getHours(), 2)}:${format(date.getMinutes(), 2)}:${format(date.getSeconds(), 2)}`;
 }
 
 /**
@@ -266,8 +277,8 @@ export function ParseURL(url: string) {
  */
 function SandboxUrl(url: string, sandbox: boolean): string {
     const obj = ParseURL(url);
-    const link = sandbox ? `${ obj.protocol }//sandbox.${ obj.host }${ obj.pathname }` :
-        `${ obj.protocol }//${ obj.host }${ obj.pathname }`
+    const link = sandbox ? `${obj.protocol}//sandbox.${obj.host}${obj.pathname}` :
+        `${obj.protocol}//${obj.host}${obj.pathname}`
     return link.endsWith('/') ? link.slice(0, -1) : link
 }
 
@@ -361,7 +372,7 @@ export function ResultMessage(result: Result, prefix?: string): string {
             }
         }
     }
-    return `${ prefix }, trigger: '${ result.trigger }', payload: '${ payload }'`
+    return `${prefix}, trigger: '${result.trigger}', payload: '${payload}'`
 }
 
 
@@ -466,6 +477,12 @@ export class CoreSDK {
         this.WaitInit().then(
             initializations => {
                 if (initializations.failure !== 0) {
+                    log.error("initialization failure count: ", initializations.failure)
+                    if (log.getLevel() <= 1) {
+                        initializations.errors.forEach(err => {
+                            log.debug("error trigger: ", err.trigger, " detail: ", err.payload)
+                        })
+                    }
                     callback({
                         code: ErrCodeInitialize,
                         trigger: initializations.trigger,
@@ -474,9 +491,13 @@ export class CoreSDK {
                     return
                 }
                 this._get_authenticate(params, (users) => {
+                    log.info("authenticate success")
+                    log.debug("authenticate payload: ", users)
                     // 认证完成追踪
                     this.PushEvent("login.authenticate", users)
                     this._login(users, info => {
+                        log.info("login success")
+                        log.debug("login payload: ", info)
                         const user: User = {
                             sdk: info.user,
                             channel: users.channel ?? info.user,
@@ -519,12 +540,17 @@ export class CoreSDK {
         }
         this._get_payment_methods(order, params, (result: Result) => {
             if (result.code !== 0) {
+                log.error("get payment methods failed: ", result.trigger)
+                log.debug("error payload: ", result.payload)
                 callback(result)
                 return
             }
             const trigger = result.trigger
+            log.debug("pay with handler: ", trigger)
             const handler = this._payment_handlers[trigger]
             if (!handler) {
+                log.error("pay handler: ", trigger, ", not found")
+                result.code = ErrCodeHandlerNotFound
                 callback(result)
             }
             handler.call(this, order, {params, info: result.payload}, callback)
@@ -558,13 +584,13 @@ export class CoreSDK {
 
     private handlerTrace(method: string, authenticated: boolean,
                          options: Record<string, any>, callback?: HandlerResults) {
-        const trigger = `core.sdk.${ method }`
+        const trigger = `core.sdk.${method}`
         const cb = callback ?? NoneHandlerResults
         if (authenticated) {
             if (!this.authenticated) {
                 cb({
                     failure: -1,
-                    trigger: `${ trigger }.UnAuthenticated`,
+                    trigger: `${trigger}.UnAuthenticated`,
                     success: [],
                     errors: []
                 })
@@ -575,13 +601,14 @@ export class CoreSDK {
         const promises: Promise<Result>[] = []
         Object.keys(this._trackers).forEach(name => {
             const tracker = this._trackers[name]
+            log.debug(`tracer: '${name}' call: '${method}'`)
             promises.push(new Promise(resolve => {
                 // @ts-ignore
                 const fn = tracker[method]
                 if (!fn) {
                     resolve({
                         code: ErrCodeNotFound, trigger: name,
-                        payload: `method:${ method } not found from tracker: ${ name }`
+                        payload: `method:${method} not found from tracker: ${name}`
                     })
                     return
                 }
@@ -720,6 +747,15 @@ export class BaseTracker {
         return this.name
     }
 
+
+    /**
+     * 设置日志等级
+     * @param level
+     * @constructor
+     */
+    SetLogLevel(level: "error" | "warn" | "info" | "debug") {
+        log.setLevel(level)
+    }
 
     /**
      * 无用户事件
