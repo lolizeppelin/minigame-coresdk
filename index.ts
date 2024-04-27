@@ -16,6 +16,9 @@ log.setLevel("error", false)
 
 const Pattern = /^\d+(\.\d+){0,2}$/
 
+
+export const TimerTokenRefresh = 'sys.token.refresh'
+
 /**
  * 未知错误
  */
@@ -388,28 +391,31 @@ export function Delay(ms: number) {
 
 /**
  * 按次数重试
+ * @param trigger
  * @param callback
  * @param retryTimes
  * @param options
  * @constructor
  */
-export function CallbackWithRetry(callback: () => Promise<Result>, retryTimes: number,
+export function CallbackWithRetry(trigger: string, callback: () => Promise<Result>, retryTimes: number,
                                   options?: { first: number, next: number, increment: boolean }): Promise<Result> {
     const opt = options ?? {first: 3000, next: 500, increment: false}
     return new Promise((resolve, reject) => {
         const retry = (attempt: number) => {
-            callback().then(resolve).catch((error) => {
+            callback().then(resolve).catch((res: Result) => {
                 if (attempt > retryTimes) {
-                    reject(error);
+                    reject(res);
                 } else {
                     // eslint-disable-next-line no-nested-ternary
                     const delay = attempt === 0
                         ? 3000
                         : (opt.increment ? attempt * opt.next : opt.next);
-                    Delay(delay).then(() => retry(attempt + 1));
+                    log.debug(`async retry: ${trigger} ${attempt} times, delay ${delay} ms`)
+                    Delay(delay).then(_ => retry(attempt + 1));
                 }
             });
         };
+
         retry(0);
     });
 }
@@ -442,10 +448,22 @@ export class CoreSDK {
     protected _get_payment_methods: GetPayMethods
 
     /**
-     * Promise 回调函数
+     * 定时器
      * @protected
      */
-    protected _promises: Record<string, Callback | PromiseLike<any>> = {}
+    protected _timers: Record<string, Callback> = {}
+
+    /**
+     * hook
+     * @protected
+     */
+    protected _hooks: Record<string, HandlerResult[]> = {}
+
+    /**
+     * Promise 异步值回调
+     * @protected
+     */
+    protected _observers: Record<string, Callback> = {}
 
     /**
      * 支付方式
@@ -456,7 +474,7 @@ export class CoreSDK {
     /**
      * 初始化接口列表
      */
-    protected initialization: Promise<Result>[] = []
+    protected _initializations: Promise<Result>[] = []
 
     /**
      * 追踪器
@@ -475,6 +493,7 @@ export class CoreSDK {
      */
     get user(): User {
         if (this._user === null) {
+            log.trace("get user without login")
             throw Error("not login")
         }
         return this._user
@@ -487,134 +506,101 @@ export class CoreSDK {
         return this._user !== null
     }
 
+
     /**
-     * 新建一个异步值
+     * 注册用户钩子
+     * @param name
+     * @param callback
+     * @constructor
+     */
+    RegHook(name: string, callback: HandlerResult) {
+        this._RegHook(`user.${name}`, callback)
+    }
+
+    /**
+     * 注册钩子
+     * @param name
+     * @param callback
+     */
+    _RegHook(name: string, callback: HandlerResult) {
+        if (this._hooks[name]) {
+            this._hooks[name] = []
+        }
+        log.info('register hook: ', name)
+        this._hooks[name].push(callback)
+    }
+
+    /**
+     * 新建一个Observable
      * @param key
      * @constructor
      * @protected
      */
-    protected Promise<T>(key: string): Promise<T> | null {
-        if (this._promises[key]) {
+    protected _Subscribe(key: string): Promise<Result> | null {
+        if (this._observers[key]) {
             return null
         }
-        return new Promise<T>(resolve => {
-            this._promises[key] = resolve
+        return new Promise<Result>(resolve => {
+            this._observers[key] = resolve
         })
     }
 
-    protected Initialize(...initializers: Promise<Result>[]) {
+    /**
+     * 发送观察结果
+     * @param key
+     * @param result
+     * @protected
+     */
+    protected _Complete(key: string, result: Result): boolean {
+        const observer = this._observers[key]
+        if (!observer) return false;
+        observer(result)
+        delete this._observers[key]
+        return true
+    }
+
+
+    /**
+     * 初始化对象插入(避免多次调用)
+     * @param initializers
+     * @protected
+     */
+    protected _Initialize(...initializers: Promise<Result>[]) {
         initializers.forEach(p => {
-            this.initialization.push(p)
+            this._initializations.push(p)
         })
     }
 
-    protected async WaitInit(): Promise<Results> {
-        if (this.initialization.length === 0) {
+    /**
+     * 等待初始化完成
+     * @protected
+     */
+    protected async _WaitInit(): Promise<Results> {
+        if (this._initializations.length === 0) {
             return new Promise<Results>(resolve => {
                 resolve(NewResults("initializer"))
             })
         }
-        return Promise.all(this.initialization).then(
-            results => {
-                return NewResults("initializer", results)
-            }
-        )
+        const results = await Promise.all(this._initializations);
+        return NewResults("initializer", results);
     }
 
-    /* -------登录--------- */
-    /**
-     * 登录
-     */
-    Login(params: Record<string, any>, callback: HandlerResult) {
-        if (this.authenticated) {
-            callback({
-                code: CodeSuccess,
-                trigger: "already.login",
-                payload: this.user,
-            })
-            return
-        }
-        this.WaitInit().then(
-            initializations => {
-                if (initializations.failure !== 0) {
-                    log.error("initialization failure count: ", initializations.failure)
-                    if (log.getLevel() <= 1) {
-                        initializations.errors.forEach(err => {
-                            log.debug("error trigger: ", err.trigger, " detail: ", err.payload)
-                        })
-                    }
-                    callback({
-                        code: ErrCodeInitialize,
-                        trigger: initializations.trigger,
-                        payload: initializations,
-                    })
-                    return
-                }
-                this._get_authenticate(params, (users) => {
-                    log.info("authenticate success")
-                    log.debug("authenticate payload: ", users)
-                    // 认证完成追踪
-                    this.PushEvent("login.authenticate", users)
-                    this._login(users, info => {
-                        log.info("login success")
-                        log.debug("login payload: ", info)
-                        const user: User = {
-                            sdk: info.user,
-                            channel: users.channel ?? info.user,
-                            platform: users.platform,
-                            registered: info.registered
-                        }
-                        // 用户登录追踪
-                        this.UserLogin(user)
-                        // 重上报调用
-                        this.RetryReport({user: user})
-                        this._user = user
-                        callback({
-                            code: CodeSuccess,
-                            trigger: "login.sdk",
-                            payload: user
-                        })
-                    }, callback)
-                }, callback)
-            }
-        )
-    }
-
-    /* -------支付--------- */
 
     /**
-     * 支付
-     * @param order
-     * @param params
-     * @param callback
+     * 启动定时器
+     * @param timer
+     * @param options
+     * @protected
      */
-    Pay(order: GameOrder, params: Record<string, any>, callback: HandlerResult) {
-
-        if (!this.authenticated) {
-            callback({
-                code: ErrCodeUnAuthenticate,
-                trigger: "user.null",
-                payload: "not login",
-            })
+    protected _StartTimer(timer: string, options?: any) {
+        const t = this._timers[timer]
+        if (!t) {
+            log.warn(`timer '${timer}' not found`)
             return
         }
-        this._get_payment_methods(order, params, (result: Result) => {
-            if (result.code !== 0) {
-                log.error("get payment methods failed: ", result.trigger)
-                log.debug("error payload: ", result.payload)
-                callback(result)
-                return
-            }
-            const trigger = result.trigger
-            log.debug("pay with handler: ", trigger)
-            const handler = this._payment_handlers[trigger]
-            if (!handler) {
-                log.error("pay handler: ", trigger, ", not found")
-                result.code = ErrCodeHandlerNotFound
-                callback(result)
-            }
-            handler.call(this, order, {params, info: result.payload}, callback)
-        })
+        log.info(`timer '${timer}' started`)
+        t(options)
+        delete this._timers[timer]
     }
 
 
@@ -634,16 +620,15 @@ export class CoreSDK {
      * @param payload
      * @constructor
      */
-    RetryReport(payload: { user?: User, role?: GameRole }) {
+    protected _RetryReport(payload: { user?: User, role?: GameRole }) {
         Object.keys(this._trackers).forEach(key => {
             const tracker = this._trackers[key]
             tracker.Retry(payload)
         })
     }
 
-
-    private handlerTrace(method: string, authenticated: boolean,
-                         options: Record<string, any>, callback?: HandlerResults) {
+    private _HandlerTrace(method: string, authenticated: boolean,
+                          options: Record<string, any>, callback?: HandlerResults) {
         const trigger = `core.sdk.${method}`
         const cb = callback ?? NoneHandlerResults
         if (authenticated) {
@@ -692,7 +677,7 @@ export class CoreSDK {
      * @constructor
      */
     PushEvent(event: string, params: Record<string, any>, callback?: HandlerResults): void {
-        this.handlerTrace("PushEvent", false, {event, params}, callback)
+        this._HandlerTrace("PushEvent", false, {event, params}, callback)
     }
 
     /**
@@ -700,7 +685,7 @@ export class CoreSDK {
      * @param callback
      */
     UserCreate(callback?: HandlerResults): void {
-        this.handlerTrace("UserCreate", true, {}, callback)
+        this._HandlerTrace("UserCreate", true, {}, callback)
     }
 
     /**
@@ -709,7 +694,7 @@ export class CoreSDK {
      * @param callback
      */
     UserLogin(user: User, callback?: HandlerResults): void {
-        this.handlerTrace("UserLogin", false, {user}, callback)
+        this._HandlerTrace("UserLogin", false, {user}, callback)
     }
 
     /**
@@ -720,7 +705,7 @@ export class CoreSDK {
     UserLogout(role: GameRole | null, callback?: HandlerResults): void {
         const options: Record<string, any> = {}
         if (role) options.role = role
-        this.handlerTrace("UserLogout", true, options, callback)
+        this._HandlerTrace("UserLogout", true, options, callback)
     }
 
     /**
@@ -731,7 +716,7 @@ export class CoreSDK {
      */
     UserEvent(event: string, params: Record<string, any>,
               callback?: HandlerResults): void {
-        this.handlerTrace("UserEvent", true, {event, params}, callback)
+        this._HandlerTrace("UserEvent", true, {event, params}, callback)
     }
 
     /**
@@ -740,7 +725,7 @@ export class CoreSDK {
      * @param callback
      */
     RoleLogin(role: GameRole, callback?: HandlerResults): void {
-        this.handlerTrace("RoleLogin", true, {role}, callback)
+        this._HandlerTrace("RoleLogin", true, {role}, callback)
     }
 
     /**
@@ -749,7 +734,7 @@ export class CoreSDK {
      * @param callback
      */
     RoleCreate(role: GameRole, callback?: HandlerResults): void {
-        this.handlerTrace("RoleCreate", true, {role}, callback)
+        this._HandlerTrace("RoleCreate", true, {role}, callback)
     }
 
     /**
@@ -759,7 +744,7 @@ export class CoreSDK {
      * @param callback
      */
     RoleUpLevel(role: GameRole, level: number, callback?: HandlerResults): void {
-        this.handlerTrace("RoleUpLevel", true, {role, level}, callback)
+        this._HandlerTrace("RoleUpLevel", true, {role, level}, callback)
     }
 
     /**
@@ -770,7 +755,7 @@ export class CoreSDK {
      */
     RoleRecharged(role: GameRole, order: GameOrder,
                   callback?: HandlerResults): void {
-        this.handlerTrace("RoleRecharged", true, {role, order}, callback)
+        this._HandlerTrace("RoleRecharged", true, {role, order}, callback)
     }
 
     /**
@@ -782,7 +767,107 @@ export class CoreSDK {
      */
     RoleEvent(event: string, role: GameRole, params: Record<string, any> | null,
               callback?: HandlerResults): void {
-        this.handlerTrace("RoleEvent", true, {role, event, params}, callback)
+        this._HandlerTrace("RoleEvent", true, {role, event, params}, callback)
+    }
+
+
+    /* -------登录--------- */
+
+    /**
+     * 登录
+     */
+    Login(params: Record<string, any>, callback: HandlerResult) {
+        if (this.authenticated) {
+            callback({
+                code: CodeSuccess,
+                trigger: "already.login",
+                payload: this.user,
+            })
+            return
+        }
+        this._WaitInit().then(
+            initializations => {
+                if (initializations.failure !== 0) {
+                    log.error("initialization failure count: ", initializations.failure)
+                    if (log.getLevel() <= 1) {
+                        initializations.errors.forEach(err => {
+                            log.debug("error trigger: ", err.trigger, " detail: ", err.payload)
+                        })
+                    }
+                    callback({
+                        code: ErrCodeInitialize,
+                        trigger: initializations.trigger,
+                        payload: initializations,
+                    })
+                    return
+                }
+                this._get_authenticate(params, (users) => {
+                    log.info("authenticate success")
+                    log.debug("authenticate payload: ", users)
+                    // 认证完成追踪
+                    this.PushEvent("login.authenticate", users)
+                    this._login(users, info => {
+                        log.info("login success")
+                        log.debug("login payload: ", info)
+                        const user: User = {
+                            sdk: info.user,
+                            channel: users.channel ?? info.user,
+                            platform: users.platform,
+                            registered: info.registered
+                        }
+                        // 用户登录追踪
+                        this.UserLogin(user)
+                        // 重上报调用
+                        this._RetryReport({user: user})
+                        this._user = user
+                        callback({
+                            code: CodeSuccess,
+                            trigger: "login.sdk",
+                            payload: user
+                        })
+                        // 启动token刷新定时器
+                        this._StartTimer(TimerTokenRefresh)
+                    }, callback)
+                }, callback)
+            }
+        )
+    }
+
+    /* -------支付--------- */
+
+    /**
+     * 支付
+     * @param order
+     * @param params
+     * @param callback
+     */
+    Pay(order: GameOrder, params: Record<string, any>, callback: HandlerResult) {
+
+        if (!this.authenticated) {
+            callback({
+                code: ErrCodeUnAuthenticate,
+                trigger: "user.null",
+                payload: "not login",
+            })
+            return
+        }
+        this._get_payment_methods(order, params, (result: Result) => {
+            if (result.code !== 0) {
+                log.error("get payment methods failed: ", result.trigger)
+                log.debug("error payload: ", result.payload)
+                callback(result)
+                return
+            }
+            const trigger = result.trigger
+            log.debug("pay with handler: ", trigger)
+            const handler = this._payment_handlers[trigger]
+            if (!handler) {
+                log.error("pay handler: ", trigger, ", not found")
+                result.code = ErrCodeHandlerNotFound
+                callback(result)
+            }
+            handler.call(this, order, {params, info: result.payload}, callback)
+        })
     }
 
 }
