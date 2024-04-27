@@ -2,7 +2,7 @@
 import 'url-search-params-polyfill';
 // eslint-disable-next-line import/no-extraneous-dependencies
 import {
-    GameOrder, GameRole, HandlerResult, HandlerResults,
+    GameOrder, GameRole, HandlerResult, HandlerResults, Callback,
     Result, Results, Tracker, User, UserInfo, VersionInfo
 } from "minigame-typings";
 import { Md5 } from "ts-md5";
@@ -375,6 +375,45 @@ export function ResultMessage(result: Result, prefix?: string): string {
     return `${prefix}, trigger: '${result.trigger}', payload: '${payload}'`
 }
 
+/**
+ * 延迟调用
+ * @param ms
+ * @constructor
+ */
+export function Delay(ms: number) {
+    return new Promise(resolve => {
+        setTimeout(resolve, ms)
+    });
+}
+
+/**
+ * 按次数重试
+ * @param callback
+ * @param retryTimes
+ * @param options
+ * @constructor
+ */
+export function CallbackWithRetry(callback: () => Promise<Result>, retryTimes: number,
+                                  options?: { first: number, next: number, increment: boolean }): Promise<Result> {
+    const opt = options ?? {first: 3000, next: 500, increment: false}
+    return new Promise((resolve, reject) => {
+        const retry = (attempt: number) => {
+            callback().then(resolve).catch((error) => {
+                if (attempt > retryTimes) {
+                    reject(error);
+                } else {
+                    // eslint-disable-next-line no-nested-ternary
+                    const delay = attempt === 0
+                        ? 3000
+                        : (opt.increment ? attempt * opt.next : opt.next);
+                    Delay(delay).then(() => retry(attempt + 1));
+                }
+            });
+        };
+        retry(0);
+    });
+}
+
 
 /*-------------------- 类 --------------------*/
 
@@ -401,6 +440,12 @@ export class CoreSDK {
      */
         // @ts-ignore
     protected _get_payment_methods: GetPayMethods
+
+    /**
+     * Promise 回调函数
+     * @protected
+     */
+    protected _promises: Record<string, Callback | PromiseLike<any>> = {}
 
     /**
      * 支付方式
@@ -440,6 +485,21 @@ export class CoreSDK {
      */
     get authenticated(): boolean {
         return this._user !== null
+    }
+
+    /**
+     * 新建一个异步值
+     * @param key
+     * @constructor
+     * @protected
+     */
+    protected Promise<T>(key: string): Promise<T> | null {
+        if (this._promises[key]) {
+            return null
+        }
+        return new Promise<T>(resolve => {
+            this._promises[key] = resolve
+        })
     }
 
     protected Initialize(...initializers: Promise<Result>[]) {
