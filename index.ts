@@ -835,7 +835,7 @@ export class CoreSDK {
                             payload: user
                         })
                         // 启动token刷新定时器
-                        this._StartTimer(TimerTokenRefresh)
+                        this._StartTimer(TimerTokenRefresh, params)
                     }, callback)
                 }, callback)
             }
