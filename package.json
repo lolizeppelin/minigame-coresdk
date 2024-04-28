@@ -1,6 +1,6 @@
 {
   "name": "minigame-coresdk",
-  "version": "0.8.3",
+  "version": "0.8.4",
   "private": false,
   "description": "minigame sdk core libs",
   "main": "dist/index.js",
