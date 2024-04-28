@@ -2,15 +2,22 @@
 import 'url-search-params-polyfill';
 // eslint-disable-next-line import/no-extraneous-dependencies
 import {
-    GameOrder, GameRole, HandlerResult, HandlerResults,
+    GameOrder, GameRole, HandlerResult, HandlerResults, Callback,
     Result, Results, Tracker, User, UserInfo, VersionInfo
 } from "minigame-typings";
 import { Md5 } from "ts-md5";
 import { sha1 } from "js-sha1";
+import log from 'loglevel'
+
+
+log.setLevel("error", false)
 
 /*-------------------- 常量 --------------------*/
 
 const Pattern = /^\d+(\.\d+){0,2}$/
+
+
+export const TimerTokenRefresh = 'sys.token.refresh'
 
 /**
  * 未知错误
@@ -57,6 +64,11 @@ export const ErrCodeParameters = 13
  * 对象未找到错误
  */
 export const ErrCodeNotFound = 14
+
+/**
+ *
+ */
+export const ErrCodeHandlerNotFound = 15
 
 
 /*-------------------- 接口 --------------------*/
@@ -116,8 +128,10 @@ function format(input: number, padLength: number): string {
  * 空handler
  * @param result
  */
-// eslint-disable-next-line @typescript-eslint/no-empty-function
 export function NoneHandlerResults(result: Results) {
+    /**
+     * empty
+     */
 }
 
 /**
@@ -237,7 +251,7 @@ export function UnixNow(): number {
  */
 export function DateTimeNow(): string {
     const date = new Date();
-    return `${ format(date.getFullYear(), 4) }-${ format(date.getMonth() + 1, 2) }-${ format(date.getDate(), 2) } ${ format(date.getHours(), 2) }:${ format(date.getMinutes(), 2) }:${ format(date.getSeconds(), 2) }`;
+    return `${format(date.getFullYear(), 4)}-${format(date.getMonth() + 1, 2)}-${format(date.getDate(), 2)} ${format(date.getHours(), 2)}:${format(date.getMinutes(), 2)}:${format(date.getSeconds(), 2)}`;
 }
 
 /**
@@ -266,8 +280,8 @@ export function ParseURL(url: string) {
  */
 function SandboxUrl(url: string, sandbox: boolean): string {
     const obj = ParseURL(url);
-    const link = sandbox ? `${ obj.protocol }//sandbox.${ obj.host }${ obj.pathname }` :
-        `${ obj.protocol }//${ obj.host }${ obj.pathname }`
+    const link = sandbox ? `${obj.protocol}//sandbox.${obj.host}${obj.pathname}` :
+        `${obj.protocol}//${obj.host}${obj.pathname}`
     return link.endsWith('/') ? link.slice(0, -1) : link
 }
 
@@ -361,7 +375,49 @@ export function ResultMessage(result: Result, prefix?: string): string {
             }
         }
     }
-    return `${ prefix }, trigger: '${ result.trigger }', payload: '${ payload }'`
+    return `${prefix}, trigger: '${result.trigger}', payload: '${payload}'`
+}
+
+/**
+ * 延迟调用
+ * @param ms
+ * @constructor
+ */
+export function Delay(ms: number) {
+    return new Promise(resolve => {
+        setTimeout(resolve, ms)
+    });
+}
+
+/**
+ * 按次数重试
+ * @param trigger
+ * @param callback
+ * @param retryTimes
+ * @param options
+ * @constructor
+ */
+export function CallbackWithRetry(trigger: string, callback: () => Promise<Result>, retryTimes: number,
+                                  options?: { first: number, next: number, increment: boolean }): Promise<Result> {
+    const opt = options ?? {first: 3000, next: 500, increment: false}
+    return new Promise((resolve, reject) => {
+        const retry = (attempt: number) => {
+            callback().then(resolve).catch((res: Result) => {
+                if (attempt > retryTimes) {
+                    reject(res);
+                } else {
+                    // eslint-disable-next-line no-nested-ternary
+                    const delay = attempt === 0
+                        ? 3000
+                        : (opt.increment ? attempt * opt.next : opt.next);
+                    log.debug(`async retry: ${trigger} ${attempt} times, delay ${delay} ms`)
+                    Delay(delay).then(_ => retry(attempt + 1));
+                }
+            });
+        };
+
+        retry(0);
+    });
 }
 
 
@@ -392,6 +448,24 @@ export class CoreSDK {
     protected _get_payment_methods: GetPayMethods
 
     /**
+     * 定时器
+     * @protected
+     */
+    protected _timers: Record<string, Callback> = {}
+
+    /**
+     * hook
+     * @protected
+     */
+    protected _hooks: Record<string, HandlerResult[]> = {}
+
+    /**
+     * Promise 异步值回调
+     * @protected
+     */
+    protected _observers: Record<string, Callback> = {}
+
+    /**
      * 支付方式
      * @protected
      */
@@ -400,7 +474,7 @@ export class CoreSDK {
     /**
      * 初始化接口列表
      */
-    protected initialization: Promise<Result>[] = []
+    protected _initializations: Promise<Result>[] = []
 
     /**
      * 追踪器
@@ -419,6 +493,7 @@ export class CoreSDK {
      */
     get user(): User {
         if (this._user === null) {
+            log.trace("get user without login")
             throw Error("not login")
         }
         return this._user
@@ -431,26 +506,273 @@ export class CoreSDK {
         return this._user !== null
     }
 
-    protected Initialize(...initializers: Promise<Result>[]) {
-        initializers.forEach(p => {
-            this.initialization.push(p)
+
+    /**
+     * 注册用户钩子
+     * @param name
+     * @param callback
+     * @constructor
+     */
+    RegHook(name: string, callback: HandlerResult) {
+        this._RegHook(`user.${name}`, callback)
+    }
+
+    /**
+     * 注册钩子
+     * @param name
+     * @param callback
+     */
+    _RegHook(name: string, callback: HandlerResult) {
+        if (this._hooks[name]) {
+            this._hooks[name] = []
+        }
+        log.info('register hook: ', name)
+        this._hooks[name].push(callback)
+    }
+
+    /**
+     * 新建一个Observable
+     * @param key
+     * @constructor
+     * @protected
+     */
+    protected _Subscribe(key: string): Promise<Result> | null {
+        if (this._observers[key]) {
+            return null
+        }
+        return new Promise<Result>(resolve => {
+            this._observers[key] = resolve
         })
     }
 
-    protected async WaitInit(): Promise<Results> {
-        if (this.initialization.length === 0) {
+    /**
+     * 发送观察结果
+     * @param key
+     * @param result
+     * @protected
+     */
+    protected _Complete(key: string, result: Result): boolean {
+        const observer = this._observers[key]
+        if (!observer) return false;
+        observer(result)
+        delete this._observers[key]
+        return true
+    }
+
+
+    /**
+     * 初始化对象插入(避免多次调用)
+     * @param initializers
+     * @protected
+     */
+    protected _Initialize(...initializers: Promise<Result>[]) {
+        initializers.forEach(p => {
+            this._initializations.push(p)
+        })
+    }
+
+    /**
+     * 等待初始化完成
+     * @protected
+     */
+    protected async _WaitInit(): Promise<Results> {
+        if (this._initializations.length === 0) {
             return new Promise<Results>(resolve => {
                 resolve(NewResults("initializer"))
             })
         }
-        return Promise.all(this.initialization).then(
-            results => {
-                return NewResults("initializer", results)
+        const results = await Promise.all(this._initializations);
+        return NewResults("initializer", results);
+    }
+
+
+    /**
+     * 启动定时器
+     * @param timer
+     * @param options
+     * @protected
+     */
+    protected _StartTimer(timer: string, options?: any) {
+        const t = this._timers[timer]
+        if (!t) {
+            log.warn(`timer '${timer}' not found`)
+            return
+        }
+        log.info(`timer '${timer}' started`)
+        t(options)
+        delete this._timers[timer]
+    }
+
+
+    /* ------------ 上报 ------------ */
+
+    /**
+     * 注册追踪器
+     * @param name
+     * @param tracker
+     */
+    RegTracker(name: string, tracker: Tracker) {
+        this._trackers[name] = tracker
+    }
+
+    /**
+     * 重上报触发
+     * @param payload
+     * @constructor
+     */
+    protected _RetryReport(payload: { user?: User, role?: GameRole }) {
+        Object.keys(this._trackers).forEach(key => {
+            const tracker = this._trackers[key]
+            tracker.Retry(payload)
+        })
+    }
+
+    private _HandlerTrace(method: string, authenticated: boolean,
+                          options: Record<string, any>, callback?: HandlerResults) {
+        const trigger = `core.sdk.${method}`
+        const cb = callback ?? NoneHandlerResults
+        if (authenticated) {
+            if (!this.authenticated) {
+                cb({
+                    failure: -1,
+                    trigger: `${trigger}.UnAuthenticated`,
+                    success: [],
+                    errors: []
+                })
+                return
+            }
+            options.user = this.user
+        }
+        const promises: Promise<Result>[] = []
+        Object.keys(this._trackers).forEach(name => {
+            const tracker = this._trackers[name]
+            log.debug(`tracer: '${name}' call: '${method}'`)
+            promises.push(new Promise(resolve => {
+                // @ts-ignore
+                const fn = tracker[method]
+                if (!fn) {
+                    resolve({
+                        code: ErrCodeNotFound, trigger: name,
+                        payload: `method:${method} not found from tracker: ${name}`
+                    })
+                    return
+                }
+                fn.call(tracker, options, (res: Result) => resolve(res))
+            }))
+        })
+        if (promises.length <= 0) {
+            cb(NewResults(trigger))
+        }
+        Promise.all(promises).then(results => {
+                cb(NewResults(trigger, results))
             }
         )
     }
 
+    /**
+     * 未登录事件
+     * @param event
+     * @param params
+     * @param callback
+     * @constructor
+     */
+    PushEvent(event: string, params: Record<string, any>, callback?: HandlerResults): void {
+        this._HandlerTrace("PushEvent", false, {event, params}, callback)
+    }
+
+    /**
+     * 用户创建追踪
+     * @param callback
+     */
+    UserCreate(callback?: HandlerResults): void {
+        this._HandlerTrace("UserCreate", true, {}, callback)
+    }
+
+    /**
+     * 用户登录追踪
+     * @param user
+     * @param callback
+     */
+    UserLogin(user: User, callback?: HandlerResults): void {
+        this._HandlerTrace("UserLogin", false, {user}, callback)
+    }
+
+    /**
+     * 用户登出追踪
+     * @param role
+     * @param callback
+     */
+    UserLogout(role: GameRole | null, callback?: HandlerResults): void {
+        const options: Record<string, any> = {}
+        if (role) options.role = role
+        this._HandlerTrace("UserLogout", true, options, callback)
+    }
+
+    /**
+     * 用户通用事件追踪
+     * @param event
+     * @param params
+     * @param callback
+     */
+    UserEvent(event: string, params: Record<string, any>,
+              callback?: HandlerResults): void {
+        this._HandlerTrace("UserEvent", true, {event, params}, callback)
+    }
+
+    /**
+     * 角色登录追踪
+     * @param role
+     * @param callback
+     */
+    RoleLogin(role: GameRole, callback?: HandlerResults): void {
+        this._HandlerTrace("RoleLogin", true, {role}, callback)
+    }
+
+    /**
+     * 角色创建追踪
+     * @param role
+     * @param callback
+     */
+    RoleCreate(role: GameRole, callback?: HandlerResults): void {
+        this._HandlerTrace("RoleCreate", true, {role}, callback)
+    }
+
+    /**
+     * 角色升级追踪
+     * @param role     角色
+     * @param level    升级的等级
+     * @param callback
+     */
+    RoleUpLevel(role: GameRole, level: number, callback?: HandlerResults): void {
+        this._HandlerTrace("RoleUpLevel", true, {role, level}, callback)
+    }
+
+    /**
+     * 角色支付追踪
+     * @param role
+     * @param order
+     * @param callback
+     */
+    RoleRecharged(role: GameRole, order: GameOrder,
+                  callback?: HandlerResults): void {
+        this._HandlerTrace("RoleRecharged", true, {role, order}, callback)
+    }
+
+    /**
+     * 角色通用事件追踪
+     * @param event
+     * @param role
+     * @param params
+     * @param callback
+     */
+    RoleEvent(event: string, role: GameRole, params: Record<string, any> | null,
+              callback?: HandlerResults): void {
+        this._HandlerTrace("RoleEvent", true, {role, event, params}, callback)
+    }
+
+
     /* -------登录--------- */
+
     /**
      * 登录
      */
@@ -463,9 +785,15 @@ export class CoreSDK {
             })
             return
         }
-        this.WaitInit().then(
+        this._WaitInit().then(
             initializations => {
                 if (initializations.failure !== 0) {
+                    log.error("initialization failure count: ", initializations.failure)
+                    if (log.getLevel() <= 1) {
+                        initializations.errors.forEach(err => {
+                            log.debug("error trigger: ", err.trigger, " detail: ", err.payload)
+                        })
+                    }
                     callback({
                         code: ErrCodeInitialize,
                         trigger: initializations.trigger,
@@ -474,9 +802,13 @@ export class CoreSDK {
                     return
                 }
                 this._get_authenticate(params, (users) => {
+                    log.info("authenticate success")
+                    log.debug("authenticate payload: ", users)
                     // 认证完成追踪
                     this.PushEvent("login.authenticate", users)
                     this._login(users, info => {
+                        log.info("login success")
+                        log.debug("login payload: ", info)
                         const user: User = {
                             sdk: info.user,
                             channel: users.channel ?? info.user,
@@ -486,13 +818,15 @@ export class CoreSDK {
                         // 用户登录追踪
                         this.UserLogin(user)
                         // 重上报调用
-                        this.RetryReport({user: user})
+                        this._RetryReport({user: user})
                         this._user = user
                         callback({
                             code: CodeSuccess,
                             trigger: "login.sdk",
                             payload: user
                         })
+                        // 启动token刷新定时器
+                        this._StartTimer(TimerTokenRefresh)
                     }, callback)
                 }, callback)
             }
@@ -519,183 +853,21 @@ export class CoreSDK {
         }
         this._get_payment_methods(order, params, (result: Result) => {
             if (result.code !== 0) {
+                log.error("get payment methods failed: ", result.trigger)
+                log.debug("error payload: ", result.payload)
                 callback(result)
                 return
             }
             const trigger = result.trigger
+            log.debug("pay with handler: ", trigger)
             const handler = this._payment_handlers[trigger]
             if (!handler) {
+                log.error("pay handler: ", trigger, ", not found")
+                result.code = ErrCodeHandlerNotFound
                 callback(result)
             }
             handler.call(this, order, {params, info: result.payload}, callback)
         })
-    }
-
-
-    /* ------------ 上报 ------------ */
-
-    /**
-     * 注册追踪器
-     * @param name
-     * @param tracker
-     */
-    RegTracker(name: string, tracker: Tracker) {
-        this._trackers[name] = tracker
-    }
-
-    /**
-     * 重上报触发
-     * @param payload
-     * @constructor
-     */
-    RetryReport(payload: { user?: User, role?: GameRole }) {
-        Object.keys(this._trackers).forEach(key => {
-            const tracker = this._trackers[key]
-            tracker.Retry(payload)
-        })
-    }
-
-
-    private handlerTrace(method: string, authenticated: boolean,
-                         options: Record<string, any>, callback?: HandlerResults) {
-        const trigger = `core.sdk.${ method }`
-        const cb = callback ?? NoneHandlerResults
-        if (authenticated) {
-            if (!this.authenticated) {
-                cb({
-                    failure: -1,
-                    trigger: `${ trigger }.UnAuthenticated`,
-                    success: [],
-                    errors: []
-                })
-                return
-            }
-            options.user = this.user
-        }
-        const promises: Promise<Result>[] = []
-        Object.keys(this._trackers).forEach(name => {
-            const tracker = this._trackers[name]
-            promises.push(new Promise(resolve => {
-                // @ts-ignore
-                const fn = tracker[method]
-                if (!fn) {
-                    resolve({
-                        code: ErrCodeNotFound, trigger: name,
-                        payload: `method:${ method } not found from tracker: ${ name }`
-                    })
-                    return
-                }
-                fn.call(tracker, options, (res: Result) => resolve(res))
-            }))
-        })
-        if (promises.length <= 0) {
-            cb(NewResults(trigger))
-        }
-        Promise.all(promises).then(results => {
-                cb(NewResults(trigger, results))
-            }
-        )
-    }
-
-    /**
-     * 未登录事件
-     * @param event
-     * @param params
-     * @param callback
-     * @constructor
-     */
-    PushEvent(event: string, params: Record<string, any>, callback?: HandlerResults): void {
-        this.handlerTrace("PushEvent", false, {event, params}, callback)
-    }
-
-    /**
-     * 用户创建追踪
-     * @param callback
-     */
-    UserCreate(callback?: HandlerResults): void {
-        this.handlerTrace("UserCreate", true, {}, callback)
-    }
-
-    /**
-     * 用户登录追踪
-     * @param user
-     * @param callback
-     */
-    UserLogin(user: User, callback?: HandlerResults): void {
-        this.handlerTrace("UserLogin", false, {user}, callback)
-    }
-
-    /**
-     * 用户登出追踪
-     * @param role
-     * @param callback
-     */
-    UserLogout(role: GameRole | null, callback?: HandlerResults): void {
-        const options: Record<string, any> = {}
-        if (role) options.role = role
-        this.handlerTrace("UserLogout", true, options, callback)
-    }
-
-    /**
-     * 用户通用事件追踪
-     * @param event
-     * @param params
-     * @param callback
-     */
-    UserEvent(event: string, params: Record<string, any>,
-              callback?: HandlerResults): void {
-        this.handlerTrace("UserEvent", true, {event, params}, callback)
-    }
-
-    /**
-     * 角色登录追踪
-     * @param role
-     * @param callback
-     */
-    RoleLogin(role: GameRole, callback?: HandlerResults): void {
-        this.handlerTrace("RoleLogin", true, {role}, callback)
-    }
-
-    /**
-     * 角色创建追踪
-     * @param role
-     * @param callback
-     */
-    RoleCreate(role: GameRole, callback?: HandlerResults): void {
-        this.handlerTrace("RoleCreate", true, {role}, callback)
-    }
-
-    /**
-     * 角色升级追踪
-     * @param role     角色
-     * @param level    升级的等级
-     * @param callback
-     */
-    RoleUpLevel(role: GameRole, level: number, callback?: HandlerResults): void {
-        this.handlerTrace("RoleUpLevel", true, {role, level}, callback)
-    }
-
-    /**
-     * 角色支付追踪
-     * @param role
-     * @param order
-     * @param callback
-     */
-    RoleRecharged(role: GameRole, order: GameOrder,
-                  callback?: HandlerResults): void {
-        this.handlerTrace("RoleRecharged", true, {role, order}, callback)
-    }
-
-    /**
-     * 角色通用事件追踪
-     * @param event
-     * @param role
-     * @param params
-     * @param callback
-     */
-    RoleEvent(event: string, role: GameRole, params: Record<string, any> | null,
-              callback?: HandlerResults): void {
-        this.handlerTrace("RoleEvent", true, {role, event, params}, callback)
     }
 
 }
@@ -720,6 +892,15 @@ export class BaseTracker {
         return this.name
     }
 
+
+    /**
+     * 设置日志等级
+     * @param level
+     * @constructor
+     */
+    SetLogLevel(level: "error" | "warn" | "info" | "debug") {
+        log.setLevel(level)
+    }
 
     /**
      * 无用户事件

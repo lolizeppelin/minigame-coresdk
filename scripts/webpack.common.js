@@ -10,6 +10,7 @@ module.exports = {
     },
     // 定义了编译打包之后的文件名以及所在路径。还有打包的模块类型
     output: {
+        // 兼容小程序
         globalObject: "this",
         // 打包后的产物名
         filename: 'index.js',
