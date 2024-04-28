@@ -366,7 +366,7 @@ export function ResultMessage(result: Result, prefix?: string): string {
         payload = ""
     } else {
         try {
-            payload = JSON.stringify(payload)
+            payload = JSON.stringify(result.payload)
         } catch {
             try {
                 payload = result.payload.toString()
