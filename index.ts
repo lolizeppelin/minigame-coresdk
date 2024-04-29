@@ -151,7 +151,7 @@ export function NewResults(trigger: string, results?: Result[]) {
         return resp
     }
     results.forEach(r => {
-        if (r.code === 0) {
+        if (r.code === CodeSuccess) {
             resp.success.push(r)
         } else {
             resp.failure += 1
@@ -358,7 +358,7 @@ export function CmpVer(v1: VersionInfo, v2: VersionInfo): -1 | 0 | 1 {
  * @param prefix
  */
 export function ResultMessage(result: Result, prefix?: string): string {
-    prefix = prefix ?? result.code === 0 ? "result success" : "result failed"
+    prefix = prefix ?? result.code === CodeSuccess ? "result success" : "result failed"
     let payload = ""
     if (typeof result.payload === 'string') {
         payload = result.payload
@@ -861,7 +861,7 @@ export class CoreSDK {
             return
         }
         this._get_payment_methods(order, params, (result: Result) => {
-            if (result.code !== 0) {
+            if (result.code !== CodeSuccess) {
                 log.error("get payment methods failed: ", result.trigger)
                 log.debug("error payload: ", result.payload)
                 callback(result)
