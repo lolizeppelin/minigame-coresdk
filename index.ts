@@ -863,7 +863,7 @@ export class CoreSDK {
         this._get_payment_methods(order, params, (result: Result) => {
             if (result.code !== CodeSuccess) {
                 log.error("get payment methods failed: ", result.trigger)
-                log.debug("error payload: ", result.payload)
+                log.debug("get payment response: ", result.payload)
                 callback(result)
                 return
             }
