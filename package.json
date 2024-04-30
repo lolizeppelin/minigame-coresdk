@@ -26,9 +26,6 @@
   "author": "lolizeppelin",
   "license": "MIT",
   "homepage": "https://github.com/lolizeppelin/minigame-coresdk",
-  "publishConfig": {
-    "registry": "http://10.20.0.6:7999/repository/npm-private/"
-  },
   "dependencies": {
     "js-sha1": "0.7.0",
     "ts-md5": "^1.3.1",
