@@ -758,13 +758,14 @@ export class CoreSDK {
 
     /**
      * 角色支付追踪
-     * @param order
+     * @param id    本地订单号
+     * @param order 下单信息
      * @param params
      * @param callback
      */
-    RoleRecharged(order: GameOrder, params: Record<string, any>,
+    RoleRecharged(id: string, order: GameOrder, params: Record<string, any>,
                   callback?: HandlerResults): void {
-        this._HandlerTrace("RoleRecharged", true, {params, order}, callback)
+        this._HandlerTrace("RoleRecharged", true, {id, params, order}, callback)
     }
 
     /**
@@ -1037,8 +1038,8 @@ export class BaseTracker implements Tracker {
     }
 
 
-    RoleRecharged(payload: { user: User, order: GameOrder, params: Record<string, any> },
-                  callback: HandlerResult): void {
+    RoleRecharged(payload: { id: string; user: User; order: GameOrder; params: Record<string, any> },
+                  callback: HandlerResult) {
         callback({code: CodeSuccess, trigger: this.name, payload: null})
     }
 
