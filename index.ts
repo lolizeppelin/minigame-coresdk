@@ -977,10 +977,8 @@ export class BaseTracker implements Tracker {
         }
     }
 
-    /* eslint-disable */
-
     Retry(payload: { user?: User, role?: GameRole }): void {
-
+        // do retry
     }
 
 
@@ -1009,6 +1007,7 @@ export class BaseTracker implements Tracker {
 
 
     UserLogout(payload: { user: User, role: GameRole | null }, callback: HandlerResult): void {
+        callback({code: CodeSuccess, trigger: this.name, payload: null})
     }
 
 
@@ -1054,5 +1053,4 @@ export class BaseTracker implements Tracker {
         handler.call(this, payload, callback)
     }
 
-    /* eslint-disable */
 }
