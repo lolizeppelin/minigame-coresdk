@@ -8,15 +8,17 @@ module.exports = {
     entry: {
         index: resolve(PROJECT_PATH, './index.ts'),
     },
+    experiments: {
+        outputModule: true,
+    },
     // 定义了编译打包之后的文件名以及所在路径。还有打包的模块类型
     output: {
         // 兼容小程序
         globalObject: "this",
-        // 打包后的产物名
-        filename: 'index.js',
-        // 打包成umd模块
-        libraryTarget: 'umd',
-        // libraryExport: 'DeprecatedWeiXinDybSDK',
+        // 打包成模块
+        library: {
+            type: 'module'
+        },
         // 路径
         path: resolve(PROJECT_PATH, './dist'),
     },

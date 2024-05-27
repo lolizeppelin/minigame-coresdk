@@ -7,7 +7,7 @@ import {
 } from "minigame-typings";
 import { Md5 } from "ts-md5";
 import { sha1 } from "js-sha1";
-import log from 'loglevel'
+import log, { Logger } from 'loglevel'
 
 
 log.setLevel("error", false)
@@ -123,6 +123,14 @@ function format(input: number, padLength: number): string {
     }
     return s
 }
+
+/**
+ * 公共logleve模块
+ */
+export function getLogger(): Logger {
+    return log
+}
+
 
 /**
  * 空handler
@@ -463,7 +471,7 @@ export class CoreSDK {
      * Promise 异步值回调
      * @protected
      */
-    protected _observers: Record<string, Callback> = {}
+    protected _observers: Record<string, Callback[]> = {}
 
     /**
      * 支付方式
@@ -545,12 +553,12 @@ export class CoreSDK {
      * @constructor
      * @protected
      */
-    protected _Subscribe(key: string): Promise<Result> | null {
-        if (this._observers[key]) {
-            return null
-        }
+    protected _Subscribe(key: string): Promise<Result> {
         return new Promise<Result>(resolve => {
-            this._observers[key] = resolve
+            if (!(key in this._observers)) {
+                this._observers[key] = []
+            }
+            this._observers[key].push(resolve)
         })
     }
 
@@ -561,10 +569,14 @@ export class CoreSDK {
      * @protected
      */
     protected _Complete(key: string, result: Result): boolean {
-        const observer = this._observers[key]
-        if (!observer) return false;
-        observer(result)
+        if (!(key in this._observers)) {
+            this._observers[key] = []
+        }
+        const observers = this._observers[key]
         delete this._observers[key]
+        observers.forEach(observer => {
+            observer(result)
+        })
         return true
     }
 
