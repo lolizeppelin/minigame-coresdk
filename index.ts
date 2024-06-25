@@ -3,7 +3,7 @@ import 'url-search-params-polyfill';
 // eslint-disable-next-line import/no-extraneous-dependencies
 import {
     GameOrder, GameRole, HandlerResult, HandlerResults, Callback,
-    Result, Results, Tracker, User, UserInfo, VersionInfo
+    Result, Results, Tracker, User, UserInfo, VersionInfo, Payment
 } from "minigame-typings";
 import { Md5 } from "ts-md5";
 import { sha1 } from "js-sha1";
@@ -772,12 +772,13 @@ export class CoreSDK {
      * 角色支付追踪
      * @param id    本地订单号
      * @param order 下单信息
+     * @param payment  支付信息
      * @param params
      * @param callback
      */
-    RoleRecharged(id: string, order: GameOrder, params: Record<string, any>,
+    RoleRecharged(id: string, order: GameOrder, payment: Payment, params: Record<string, any>,
                   callback?: HandlerResults): void {
-        this._HandlerTrace("RoleRecharged", true, {id, params, order}, callback)
+        this._HandlerTrace("RoleRecharged", true, {id, params, order, payment}, callback)
     }
 
     /**
@@ -1049,7 +1050,7 @@ export class BaseTracker implements Tracker {
     }
 
 
-    RoleRecharged(payload: { id: string; user: User; order: GameOrder; params: Record<string, any> },
+    RoleRecharged(payload: { id: string; user: User; params: Record<string, any>; order: GameOrder; payment: Payment },
                   callback: HandlerResult) {
         callback({code: CodeSuccess, trigger: this.name, payload: null})
     }
