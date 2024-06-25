@@ -741,6 +741,19 @@ export class CoreSDK {
     }
 
     /**
+     * 用户支付追踪
+     * @param id    本地订单号
+     * @param payment  支付信息
+     * @param params
+     * @param callback
+     */
+    UserRecharged(id: string,payment: Payment, params: Record<string, any>,
+                  callback?: HandlerResults): void {
+        this._HandlerTrace("UserRecharged", true, {id, params, payment}, callback)
+    }
+
+
+    /**
      * 角色登录追踪
      * @param role
      * @param callback
@@ -1023,6 +1036,11 @@ export class BaseTracker implements Tracker {
         callback({code: CodeSuccess, trigger: this.name, payload: null})
     }
 
+
+    UserRecharged(payload: { id: string; user: User; params: Record<string, any>; payment: Payment },
+                  callback: HandlerResult) {
+        callback({code: CodeSuccess, trigger: this.name, payload: null})
+    }
 
     UserEvent(payload: { event: string, user: User, params: Record<string, any> },
               callback: HandlerResult): void {
