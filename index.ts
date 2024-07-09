@@ -421,33 +421,38 @@ export function Delay(ms: number) {
 }
 
 /**
- * 按次数重试
+ * 自动重试异步方法
  * @param trigger     调用触发器
  * @param callback    回调函数
- * @param retryTimes  重试次数
- * @param options     延迟参数
+ * @param options     重试参数(默认重试3次、间隔3s)
  * @constructor
  */
-export function CallbackWithRetry(trigger: string, callback: () => Promise<Result>, retryTimes: number,
+export function CallbackWithRetry(trigger: string, callback: () => Promise<Result>,
                                   options?: {
+                                      /**
+                                       * 重试次数
+                                       */
+                                      times: number;
                                       /**
                                        * 重试延迟
                                        */
-                                      delay: number,
+                                      delay: number;
                                       /**
                                        * 首次请求延迟
                                        */
-                                      first?: number,
+                                      first?: number;
                                       /**
                                        * 延迟递增
                                        */
-                                      increment?: boolean,
+                                      increment?: boolean;
                                       /**
                                        * 最大延迟
                                        */
                                       max?: number
                                   }): Promise<Result> {
-    const opt = options ?? {delay: 3000}
+    const opt = options ?? {times: 3, delay: 3000}
+    const retryTimes = opt.times > 0 ? opt.times : 1
+
     return new Promise((resolve, reject) => {
         const retry = (attempt: number) => {
             callback().then(resolve).catch((e) => {
