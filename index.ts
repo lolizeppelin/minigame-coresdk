@@ -112,7 +112,8 @@ export interface Authenticate {
          /**
           * 额外参数
           */
-         options?: Record<string, any> }) => void,
+         options?: Record<string, any>
+     }) => void,
      onFailed: HandlerResult): void
 }
 
@@ -281,7 +282,7 @@ export function UnixNow(): number {
  */
 export function DateTimeNow(): string {
     const date = new Date();
-    return `${format(date.getFullYear(), 4)}-${format(date.getMonth() + 1, 2)}-${format(date.getDate(), 2)} ${format(date.getHours(), 2)}:${format(date.getMinutes(), 2)}:${format(date.getSeconds(), 2)}`;
+    return `${ format(date.getFullYear(), 4) }-${ format(date.getMonth() + 1, 2) }-${ format(date.getDate(), 2) } ${ format(date.getHours(), 2) }:${ format(date.getMinutes(), 2) }:${ format(date.getSeconds(), 2) }`;
 }
 
 /**
@@ -310,8 +311,8 @@ export function ParseURL(url: string) {
  */
 function SandboxUrl(url: string, sandbox: boolean): string {
     const obj = ParseURL(url);
-    const link = sandbox ? `${obj.protocol}//sandbox.${obj.host}${obj.pathname}` :
-        `${obj.protocol}//${obj.host}${obj.pathname}`
+    const link = sandbox ? `${ obj.protocol }//sandbox.${ obj.host }${ obj.pathname }` :
+        `${ obj.protocol }//${ obj.host }${ obj.pathname }`
     return link.endsWith('/') ? link.slice(0, -1) : link
 }
 
@@ -405,7 +406,7 @@ export function ResultMessage(result: Result, prefix?: string): string {
             }
         }
     }
-    return `${prefix}, trigger: '${result.trigger}', payload: '${payload}'`
+    return `${ prefix }, trigger: '${ result.trigger }', payload: '${ payload }'`
 }
 
 /**
@@ -421,28 +422,58 @@ export function Delay(ms: number) {
 
 /**
  * 按次数重试
- * @param trigger
- * @param callback
- * @param retryTimes
- * @param options
+ * @param trigger     调用触发器
+ * @param callback    回调函数
+ * @param retryTimes  重试次数
+ * @param options     延迟参数
  * @constructor
  */
 export function CallbackWithRetry(trigger: string, callback: () => Promise<Result>, retryTimes: number,
-                                  options?: { first: number, next: number, increment: boolean }): Promise<Result> {
-    const opt = options ?? {first: 3000, next: 500, increment: false}
+                                  options?: {
+                                      /**
+                                       * 重试延迟
+                                       */
+                                      delay: number,
+                                      /**
+                                       * 首次请求延迟
+                                       */
+                                      first?: number,
+                                      /**
+                                       * 延迟递增
+                                       */
+                                      increment?: boolean,
+                                      /**
+                                       * 最大延迟
+                                       */
+                                      max?: number
+                                  }): Promise<Result> {
+    const opt = options ?? {delay: 3000}
     return new Promise((resolve, reject) => {
         const retry = (attempt: number) => {
-            callback().then(resolve).catch((res: Result) => {
+            callback().then(resolve).catch((e) => {
                 if (attempt > retryTimes) {
-                    reject(res);
+                    reject(e);
+                    return
+                }
+                /* ----延迟计算---- */
+                let delay = 0
+                if (attempt === 0) {
+                    delay = opt.first ?? opt.delay
                 } else {
-                    // eslint-disable-next-line no-nested-ternary
-                    const delay = attempt === 0
-                        ? 3000
-                        : (opt.increment ? attempt * opt.next : opt.next);
-                    log.debug(`async retry: ${trigger} ${attempt} times, delay ${delay} ms`)
+                    delay = opt.increment ? attempt * opt.delay : opt.delay
+                    if (opt.max && delay > opt.max) {
+                        delay = opt.max
+                    }
+                }
+
+                if (delay <= 0) {
+                    log.debug(`async retry: ${ trigger } ${ attempt } times`)
+                    retry(attempt + 1)
+                } else {
+                    log.debug(`async retry: ${ trigger } ${ attempt } times, delay ${ delay } ms`)
                     Delay(delay).then(_ => retry(attempt + 1));
                 }
+
             });
         };
 
@@ -557,7 +588,7 @@ export class CoreSDK {
      * @constructor
      */
     RegHook(name: string, callback: HandlerResult) {
-        this._RegHook(`user.${name}`, callback)
+        this._RegHook(`user.${ name }`, callback)
     }
 
     /**
@@ -642,10 +673,10 @@ export class CoreSDK {
     protected _StartTimer(timer: string, options?: any) {
         const t = this._timers[timer]
         if (!t) {
-            log.warn(`timer '${timer}' not found`)
+            log.warn(`timer '${ timer }' not found`)
             return
         }
-        log.info(`timer '${timer}' started`)
+        log.info(`timer '${ timer }' started`)
         t(options)
         delete this._timers[timer]
     }
@@ -676,13 +707,13 @@ export class CoreSDK {
 
     private _HandlerTrace(method: string, authenticated: boolean,
                           options: Record<string, any>, callback?: HandlerResults) {
-        const trigger = `core.sdk.${method}`
+        const trigger = `core.sdk.${ method }`
         const cb = callback ?? NoneHandlerResults
         if (authenticated) {
             if (!this.authenticated) {
                 cb({
                     failure: -1,
-                    trigger: `${trigger}.UnAuthenticated`,
+                    trigger: `${ trigger }.UnAuthenticated`,
                     success: [],
                     errors: []
                 })
@@ -693,14 +724,14 @@ export class CoreSDK {
         const promises: Promise<Result>[] = []
         Object.keys(this._trackers).forEach(name => {
             const tracker = this._trackers[name]
-            log.debug(`tracer: '${name}' call: '${method}'`)
+            log.debug(`tracer: '${ name }' call: '${ method }'`)
             promises.push(new Promise(resolve => {
                 // @ts-ignore
                 const fn = tracker[method]
                 if (!fn) {
                     resolve({
                         code: ErrCodeNotFound, trigger: name,
-                        payload: `method:${method} not found from tracker: ${name}`
+                        payload: `method:${ method } not found from tracker: ${ name }`
                     })
                     return
                 }
