@@ -16,6 +16,8 @@
     "allowJs": true,
     // 不输出私有方法
     "stripInternal": true,
+    // 跳过声明文件检查
+    "skipLibCheck": true,
     // 禁止对同一个文件的不一致的引用
     "forceConsistentCasingInFileNames": true,
     // 允许export module
