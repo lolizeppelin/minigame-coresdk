@@ -3,7 +3,7 @@ import 'url-search-params-polyfill';
 // eslint-disable-next-line import/no-extraneous-dependencies
 import {
     GameOrder, GameRole, HandlerResult, HandlerResults, Callback,
-    Result, Results, Tracker, User, UserInfo, VersionInfo, Payment
+    Result, Results, Tracker, User, UserInfo, VersionInfo, Payment, Plugin
 } from "minigame-typings";
 import { Md5 } from "ts-md5";
 import { sha1 } from "js-sha1";
@@ -112,7 +112,8 @@ export interface Authenticate {
          /**
           * 额外参数
           */
-         options?: Record<string, any> }) => void,
+         options?: Record<string, any>
+     }) => void,
      onFailed: HandlerResult): void
 }
 
@@ -302,6 +303,7 @@ export function ParseURL(url: string) {
         hash: match[7]
     }
 }
+
 
 /**
  * 替换为 sandbox url
@@ -522,6 +524,10 @@ export class CoreSDK {
 
     protected _after_login: LoginHook[] = []
 
+    protected _plugins: Plugin[] = []
+
+    private _initializes: Promise<Results> | null = null
+
     /**
      * 获取用户信息
      */
@@ -622,16 +628,17 @@ export class CoreSDK {
      * 等待初始化完成
      * @protected
      */
-    protected async _WaitInit(): Promise<Results> {
-        if (this._initializations.length === 0) {
-            return new Promise<Results>(resolve => {
+    protected _WaitInit(): Promise<Results> {
+        if (!this._initializes) {
+            this._initializes = this._initializations.length === 0 ? new Promise<Results>(resolve => {
                 resolve(NewResults("initializer"))
+            }) : Promise.all(this._initializations).then(results => {
+                this._plugins.forEach(p => p.AfterInitialize())
+                return NewResults("initializer", results)
             })
         }
-        const results = await Promise.all(this._initializations);
-        return NewResults("initializer", results);
+        return this._initializes
     }
-
 
     /**
      * 启动定时器
@@ -878,12 +885,16 @@ export class CoreSDK {
                             platform: users.platform,
                             registered: info.registered
                         }
+                        // 登录后调用
                         this._after_login.forEach(h => h(user))
-                        // 用户登录追踪
-                        this.UserLogin(user)
                         // 重上报调用
                         this._RetryReport({user: user})
+                        // 设置用户
                         this._user = user
+                        // 插件登录后
+                        this._plugins.forEach(p => p.AfterLogin(user))
+                        // 用户登录追踪
+                        this.UserLogin(user)
                         callback({
                             code: CodeSuccess,
                             trigger: "login.sdk",
