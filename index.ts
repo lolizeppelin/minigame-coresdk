@@ -2,8 +2,8 @@
 import 'url-search-params-polyfill';
 // eslint-disable-next-line import/no-extraneous-dependencies
 import {
-    GameOrder, GameRole, HandlerResult, HandlerResults, Callback,
-    Result, Results, Tracker, User, UserInfo, VersionInfo, Payment, Plugin
+    GameOrder, GameRole, HandlerResult, HandlerResults, Callback, PluginConstructor,
+    Result, Results, Tracker, User, UserInfo, VersionInfo, Payment, Plugin, ApplicationInfo, CacheStorage,
 } from "minigame-typings";
 import { Md5 } from "ts-md5";
 import { sha1 } from "js-sha1";
@@ -18,6 +18,8 @@ const Pattern = /^\d+(\.\d+){0,2}$/
 
 
 export const TimerTokenRefresh = 'sys.token.refresh'
+
+export const AppInitialize = 'app.initialize'
 
 /**
  * 未知错误
@@ -554,19 +556,39 @@ export class CoreSDK {
      * @protected
      */
     protected _user: User | null = null;
+    
+    /**
+     * 应用信息
+     * @private
+     */
+    private _app: ApplicationInfo | null = null;
+    /**
+     * 缓存接口
+     * @private
+     */
+    private _storage: CacheStorage | null = null;
 
     protected _after_authenticate: AuthenticateHook[] = []
 
     protected _after_login: LoginHook[] = []
-
-    protected _plugins: Plugin[] = []
-
+    
+    /**
+     * 已经加载的插件
+     * @protected
+     */
+    protected readonly _plugins: Plugin[] = [];
+    
+    /** 插件加载器
+     * plugin loaders
+     */
+    private readonly _loaders: Record<string, PluginConstructor> = {}
+    
     private _initializes: Promise<Results> | null = null
 
     /**
      * 获取用户信息
      */
-    get user(): User {
+    public get user(): User {
         if (this._user === null) {
             log.trace("get user without login")
             throw Error("not login")
@@ -577,16 +599,37 @@ export class CoreSDK {
     /**
      * 确认是否登录
      */
-    get authenticated(): boolean {
+    public get authenticated(): boolean {
         return this._user !== null
     }
-
+    
+    /**
+     * 应用
+     */
+    public get app(): ApplicationInfo {
+        if(!this._app) {
+            throw Error("initialize application required")
+        }
+        return this._app
+    }
+    
+    /**
+     * 存储对象
+     */
+    public get storage(): CacheStorage {
+        if(!this._storage) {
+            throw Error("not cache storage found")
+        }
+        return this._storage
+    }
+    
+    
     /**
      * 设置日志等级
      * @param level
      * @constructor
      */
-    SetLogLevel(level: "error" | "warn" | "info" | "debug") {
+    public SetLogLevel(level: "error" | "warn" | "info" | "debug") {
         log.setLevel(level)
     }
 
@@ -597,7 +640,7 @@ export class CoreSDK {
      * @param callback
      * @constructor
      */
-    RegHook(name: string, callback: HandlerResult) {
+    public RegHook(name: string, callback: HandlerResult) {
         this._RegHook(`user.${ name }`, callback)
     }
 
@@ -606,14 +649,58 @@ export class CoreSDK {
      * @param name
      * @param callback
      */
-    _RegHook(name: string, callback: HandlerResult) {
+    protected _RegHook(name: string, callback: HandlerResult) {
         if (this._hooks[name]) {
             this._hooks[name] = []
         }
         log.info('register hook: ', name)
         this._hooks[name].push(callback)
     }
-
+    
+    /**
+     * 注册插件加载器
+     * @param name
+     * @param loader
+     * @constructor
+     */
+    protected RegPlugin(name: string, loader: PluginConstructor) {
+        this._loaders[name] = loader
+    }
+    
+    /**
+     * 加载插件
+     * @private
+     */
+    private _LoadPlugins() :void{
+        if (!this._app) {
+            log.warn("init app required by load plugins")
+            return
+        }
+        const plugins = this.app.plugins
+        if (!plugins || plugins.length === 0) {
+            return;
+        }
+        plugins.forEach(cfg=> {
+            if (cfg.disabled) return
+            const CLS = this._loaders[cfg.name]
+            if (!CLS) {
+                // 插件代码未能加载
+                log.error("plugin loader is missing: ", cfg.name)
+                return;
+            }
+            this._plugins.push(new CLS(cfg, this))
+        })
+    }
+    
+    /**
+     * 注册存储
+     * @param storage
+     * @constructor
+     */
+    protected RegStorage(storage: CacheStorage) {
+        this._storage = storage
+    }
+    
     /**
      * 新建一个Observable
      * @param key
@@ -658,7 +745,7 @@ export class CoreSDK {
             this._initializations.push(p)
         })
     }
-
+    
     /**
      * 等待初始化完成
      * @protected
@@ -668,8 +755,23 @@ export class CoreSDK {
             this._initializes = this._initializations.length === 0 ? new Promise<Results>(resolve => {
                 resolve(NewResults("initializer"))
             }) : Promise.all(this._initializations).then(results => {
-                this._plugins.forEach(p => p.AfterInitialize())
-                return NewResults("initializer", results)
+                // 初始化app对象
+                results.some(result => {
+                    if (result.trigger === AppInitialize) {
+                        this._app = result.payload
+                        return true; // 结束 some 循环
+                    }
+                    return false;
+                });
+                // 初始化插件
+                const r = NewResults("initializer", results)
+                this._LoadPlugins()
+                if (this._plugins.length > 0) {
+                    this._plugins.forEach(p => {
+                        p.AfterInitialize(r)
+                    })
+                }
+                return r
             })
         }
         return this._initializes
@@ -700,7 +802,7 @@ export class CoreSDK {
      * @param name
      * @param tracker
      */
-    RegTracker(name: string, tracker: Tracker) {
+    public RegTracker(name: string, tracker: Tracker) {
         this._trackers[name] = tracker
     }
 
@@ -894,7 +996,7 @@ export class CoreSDK {
                 if (initializations.failure !== 0) {
                     log.error("initialization failure count: ", initializations.failure)
                     if (log.getLevel() <= 1) {
-                        initializations.errors.forEach(err => {
+                        initializations.errors.forEach((err: Result) => {
                             log.debug("error trigger: ", err.trigger, " detail: ", err.payload)
                         })
                     }
@@ -927,7 +1029,9 @@ export class CoreSDK {
                         // 设置用户
                         this._user = user
                         // 插件登录后
-                        this._plugins.forEach(p => p.AfterLogin(user))
+                        if (this._plugins.length>0) {
+                            this._plugins.forEach(p => p.AfterLogin(user))
+                        }
                         // 用户登录追踪
                         this.UserLogin(user)
                         callback({
