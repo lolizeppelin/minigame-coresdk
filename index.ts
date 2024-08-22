@@ -73,6 +73,15 @@ export const ErrCodeNotFound = 14
 export const ErrCodeHandlerNotFound = 15
 
 
+export const ErrHooks = {
+    initialize: "error.init",
+    plugin: "error.plugin",
+    login: "error.login",
+    pay: "error.pay",
+    
+}
+
+
 /*-------------------- 接口 --------------------*/
 
 /**
@@ -632,7 +641,17 @@ export class CoreSDK {
     public SetLogLevel(level: "error" | "warn" | "info" | "debug") {
         log.setLevel(level)
     }
-
+    
+    
+    /**
+     * 消息推送
+     * @param name
+     * @param result
+     * @constructor
+     */
+    public Publish(name:string, result: Result) {
+        this._Publish(`user.${ name }`, result)
+    }
 
     /**
      * 注册用户钩子
@@ -655,6 +674,20 @@ export class CoreSDK {
         }
         log.info('register hook: ', name)
         this._hooks[name].push(callback)
+    }
+    
+    /**
+     * 消息推送
+     * @param name
+     * @param result
+     * @constructor
+     */
+    protected _Publish(name:string, result: Result) {
+        const handlers = this._hooks[name]
+        if (!handlers) return
+        handlers.forEach(h=> {
+            h(result)
+        })
     }
     
     /**
@@ -686,9 +719,17 @@ export class CoreSDK {
             if (!CLS) {
                 // 插件代码未能加载
                 log.error("plugin loader is missing: ", cfg.name)
+                this._Publish(ErrHooks.plugin, { code: ErrCodeInitialize, trigger: 'plugin.missing', payload: cfg.name });
                 return;
             }
-            this._plugins.push(new CLS(cfg, this))
+            try {
+                const plugin = new CLS(cfg, this)
+                this._plugins.push(plugin)
+            } catch (e) {
+                log.error("load plugin is failed: ", cfg.name)
+                log.debug("plugin error: ", e)
+                this._Publish(ErrHooks.plugin, { code: ErrCodeInitialize, trigger: 'plugin.load', payload: e });
+            }
         })
     }
     
@@ -765,6 +806,10 @@ export class CoreSDK {
                 });
                 // 初始化插件
                 const r = NewResults("initializer", results)
+                if (r.failure > 0 ) {
+                    this._Publish(ErrHooks.initialize, { code: ErrCodeInitialize, trigger: 'core.wait.init',
+                        payload: r.errors });
+                }
                 this._LoadPlugins()
                 if (this._plugins.length > 0) {
                     this._plugins.forEach(p => {
@@ -995,11 +1040,6 @@ export class CoreSDK {
             initializations => {
                 if (initializations.failure !== 0) {
                     log.error("initialization failure count: ", initializations.failure)
-                    if (log.getLevel() <= 1) {
-                        initializations.errors.forEach((err: Result) => {
-                            log.debug("error trigger: ", err.trigger, " detail: ", err.payload)
-                        })
-                    }
                     callback({
                         code: ErrCodeInitialize,
                         trigger: initializations.trigger,
@@ -1042,7 +1082,10 @@ export class CoreSDK {
                         // 启动token刷新定时器
                         this._StartTimer(TimerTokenRefresh, params)
                     }, callback)
-                }, callback)
+                }, (err) => {
+                    this._Publish(ErrHooks.login, { code: ErrUnknown, trigger: 'core.authenticate', payload: err});
+                    callback(err)
+                })
             }
         )
     }
@@ -1058,6 +1101,7 @@ export class CoreSDK {
     Pay(order: GameOrder, params: Record<string, any>, callback: HandlerResult) {
 
         if (!this.authenticated) {
+            this._Publish(ErrHooks.pay, { code: ErrCodeUnAuthenticate, trigger: 'core.payment.methods', payload: order});
             callback({
                 code: ErrCodeUnAuthenticate,
                 trigger: "user.null",
@@ -1067,6 +1111,7 @@ export class CoreSDK {
         }
         this._get_payment_methods(order, params, (result: Result) => {
             if (result.code !== CodeSuccess) {
+                this._Publish(ErrHooks.pay, { code: ErrUnknown, trigger: 'core.payment.methods', payload: result});
                 log.error("get payment methods failed: ", result.trigger)
                 log.debug("get payment response: ", result.payload)
                 callback(result)
@@ -1076,11 +1121,17 @@ export class CoreSDK {
             log.debug("pay with handler: ", trigger)
             const handler = this._payment_handlers[trigger]
             if (!handler) {
+                this._Publish(ErrHooks.pay, { code: ErrCodeHandlerNotFound, trigger: 'core.payment.methods', payload: result});
                 log.error("pay handler: ", trigger, ", not found")
                 result.code = ErrCodeHandlerNotFound
                 callback(result)
             }
-            handler.call(this, order, {params, info: result.payload}, callback)
+            handler.call(this, order, {params, info: result.payload}, (resp: Result)=> {
+                if (resp.code !== CodeSuccess) {
+                    this._Publish(ErrHooks.pay, { code: ErrUnknown, trigger: 'core.payment.order', payload: resp});
+                }
+                callback(resp)
+            })
         })
     }
 
