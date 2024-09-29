@@ -2,7 +2,7 @@
 import 'url-search-params-polyfill';
 // eslint-disable-next-line import/no-extraneous-dependencies
 import {
-    GameOrder, GameRole, HandlerResult, HandlerResults, Callback, PluginConstructor,
+    GameOrder, GameRole, HandlerResult, HandlerResults, Callback, PluginLoder,
     Result, Results, Tracker, User, UserInfo, VersionInfo, Payment, Plugin, ApplicationInfo, CacheStorage,
 } from "minigame-typings";
 import { Md5 } from "ts-md5";
@@ -590,7 +590,7 @@ export class CoreSDK {
     /** 插件加载器
      * plugin loaders
      */
-    private readonly _loaders: Record<string, PluginConstructor> = {}
+    private readonly _loaders: Record<string, PluginLoder> = {}
     
     private _initializes: Promise<Results> | null = null
 
@@ -696,7 +696,7 @@ export class CoreSDK {
      * @param loader
      * @constructor
      */
-    protected RegPlugin(name: string, loader: PluginConstructor) {
+    protected RegPlugin(name: string, loader: PluginLoder) {
         this._loaders[name] = loader
     }
     
