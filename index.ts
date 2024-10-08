@@ -2,7 +2,7 @@
 import 'url-search-params-polyfill';
 // eslint-disable-next-line import/no-extraneous-dependencies
 import {
-    GameOrder, GameRole, HandlerResult, HandlerResults, Callback, PluginLoder,
+    GameOrder, GameRole, HandlerResult, HandlerResults, Callback, PluginLoder, SharedInfo,
     Result, Results, Tracker, User, VersionInfo, Payment, Plugin, ApplicationInfo, CacheStorage
 } from "minigame-typings";
 import { Md5 } from "ts-md5";
@@ -88,28 +88,6 @@ export const ErrHooks = {
 
 
 /*-------------------- 接口 --------------------*/
-
-/**
- * 订单处理函数
- */
-export interface HandlerPayment {
-    (order: GameOrder, params: Record<string, any>, callback: HandlerResult): void
-}
-
-/**
- * 支付方式处理函数
- */
-export interface HandlerPaymentMethods {
-    (order: GameOrder, options: { params: Record<string, any>, info: any }, callback: HandlerResult): void
-}
-
-
-/**
- * 支付方式获取函数
- */
-export interface GetPayMethods {
-    (order: GameOrder, params: Record<string, any>, handler: HandlerResult): void
-}
 
 
 export interface ExtHandler {
@@ -522,6 +500,19 @@ export class CoreSDK {
      */
     protected _user: User | null = null;
 
+    protected _shared: SharedInfo = {
+        link: {
+            title: "",
+            query: {},
+            url: "",
+            path: ""
+        },
+        callback: _ => {
+            /** empty **/
+        }
+
+    }
+
     /**
      * 应用信息
      * @private
@@ -556,6 +547,13 @@ export class CoreSDK {
             throw Error("not login")
         }
         return this._user
+    }
+
+    /**
+     * 分享信息
+     */
+    get shared() {
+        return this._shared.link
     }
 
     /**
