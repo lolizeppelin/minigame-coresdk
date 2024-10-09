@@ -122,11 +122,21 @@ export function getLogger(): Logger {
  * 空handler
  * @param result
  */
-export function NoneHandlerResults(result: Results) {
+export function NoneHandlerResults(result: Results): void {
     /**
      * empty
      */
 }
+
+/**
+ * 空handler
+ */
+export function NoneHandlerResult(result: Result): void {
+    /**
+     * empty
+     */
+}
+
 
 /**
  * 转为为批量错误
@@ -821,6 +831,18 @@ export class CoreSDK {
         log.info(`timer '${timer}' started`)
         t(options)
         delete this._timers[timer]
+    }
+
+    /**
+     * 刷新token
+     * @param params
+     * @param callback
+     * @protected
+     */
+    protected _RefreshToken(params: Record<string, any>, callback?:HandlerResult) {
+        const handler = this.handlers[TimerTokenRefresh]
+        if (!handler) return
+        handler(params, callback ?? NoneHandlerResult)
     }
 
 
