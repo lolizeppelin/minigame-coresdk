@@ -27,6 +27,8 @@ export const HandlerAuthenticate = 'handler.authenticate'  // 认证
 
 export const HandlerLogin = 'handler.login'  // 登录
 
+export const HandlerText = 'handler.text'  // 文本检查
+
 export const HandlerPayMethods = 'handler.pay.methods'  // 支付方式
 
 export const HookPayed = 'handler.payed'  // 支付方式
@@ -1059,6 +1061,16 @@ export class CoreSDK {
                 callback(_result)
             })
         })
+    }
+
+    /**
+     * 消息检查
+     * @param content  正文
+     * @param options  额外参数
+     * @param callback 回调
+     */
+    public ValidateText(content: string, options: Record<string, any>, callback: HandlerResult) {
+        this.Call(HandlerText, {content, options}, callback)
     }
 
 
