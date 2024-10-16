@@ -35,7 +35,8 @@
     },
     "devDependencies": {
         "minigame-typings": "^0.8.0",
-        "@babel/core": "^7.16.5",
+        "@babel/core": "7.25.2",
+        "babel-loader": "8.4.1",
         "@babel/plugin-transform-runtime": "^7.16.5",
         "@babel/preset-env": "^7.16.5",
         "@babel/runtime-corejs3": "^7.23.2",
@@ -46,7 +47,6 @@
         "@types/node": "^20.10.0",
         "@typescript-eslint/eslint-plugin": "^5.7.0",
         "@typescript-eslint/parser": "^5.7.0",
-        "babel-loader": "^8.2.3",
         "cross-env": "^7.0.3",
         "dts-bundle-generator": "^8.1.2",
         "dts-bundle-webpack": "^1.0.2",

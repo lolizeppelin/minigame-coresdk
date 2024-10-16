@@ -160,11 +160,11 @@ export function NewResults(trigger: string, results?: Result[]) {
 
 /** base64 api **/
 
-export function FromBase64URL(text: string): string {
+export function Base64URLFromBase64(text: string): string {
     return base64url.fromBase64(text)
 }
 
-export function ToBase64URL(payload: string | Buffer): string {
+export function Base64ToBase64URL(payload: string | Buffer): string {
     return base64url.toBase64(payload)
 }
 
