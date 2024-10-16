@@ -3,11 +3,13 @@ import 'url-search-params-polyfill';
 // eslint-disable-next-line import/no-extraneous-dependencies
 import {
     GameOrder, GameRole, HandlerResult, HandlerResults, Callback, PluginLoder, SharedInfo,
-    Result, Results, Tracker, User, VersionInfo, Payment, Plugin, ApplicationInfo, CacheStorage
+    Result, Results, Tracker, User, VersionInfo, Payment, Plugin, ApplicationInfo, CacheStorage,
+    ExtHandler, LoginHook, HandlerPayMethod, HandlerPay
 } from "minigame-typings";
 import { Md5 } from "ts-md5";
 import { sha1 } from "js-sha1";
 import log, { Logger } from 'loglevel'
+import base64url from "base64url";
 
 
 log.setLevel("error", false)
@@ -25,7 +27,9 @@ export const HandlerAuthenticate = 'handler.authenticate'  // 认证
 
 export const HandlerLogin = 'handler.login'  // 登录
 
-export const HandlerPayMethods = 'handler.pay.methods'  // 支付
+export const HandlerPayMethods = 'handler.pay.methods'  // 支付方式
+
+export const HookPayed = 'handler.payed'  // 支付方式
 
 /**
  * 未知错误
@@ -84,19 +88,6 @@ export const ErrHooks = {
     plugin: "error.plugin",
     login: "error.login",
     pay: "error.pay"
-}
-
-
-/*-------------------- 接口 --------------------*/
-
-
-export interface ExtHandler {
-    (params: any, callback: HandlerResult): void
-}
-
-
-export interface LoginHook {
-    (user: User): void
 }
 
 
@@ -165,6 +156,29 @@ export function NewResults(trigger: string, results?: Result[]) {
 
     return resp
 }
+
+
+/** base64 api **/
+
+export function FromBase64URL(text: string): string {
+    return base64url.fromBase64(text)
+}
+
+export function ToBase64URL(payload: string | Buffer): string {
+    return base64url.toBase64(payload)
+}
+
+
+export function Base64URLEncode(payload: string | Buffer, encoding?: string): string {
+    return base64url.encode(payload, encoding)
+}
+
+
+export function Base64URLDecode(text: string, encoding?: string): string {
+    return base64url.decode(text, encoding)
+}
+
+/** base64 api **/
 
 /**
  * url query解析方法
@@ -603,14 +617,9 @@ export class CoreSDK {
      * @constructor
      * @protected
      */
-    protected RegPay(trigger: string, handler: (params: {
-        order: GameOrder,
-        params: Record<string, any>,
-        payload: any;
-    }, callback: HandlerResult) => void): void {
+    protected RegPay(trigger: string, handler: HandlerPay): void {
         this.handlers[trigger] = handler
     }
-
 
     /**
      * 注册支付方式获取
@@ -618,11 +627,7 @@ export class CoreSDK {
      * @constructor
      * @protected
      */
-    protected RegPayMethods(handler: (params: {
-        order: GameOrder,
-        params: Record<string, any>,
-        payload: any;
-    }, callback: HandlerResult) => void): void {
+    protected RegPayMethods(handler: HandlerPayMethod): void {
         this.handlers[HandlerPayMethods] = handler
     }
 
@@ -635,6 +640,20 @@ export class CoreSDK {
      */
     protected RegHandler(name: string, handler: ExtHandler): void {
         this.handlers[name] = handler
+    }
+
+    /**
+     * handler调用
+     * @param name
+     * @param params
+     * @param callback
+     */
+    protected Call(name: string, params: any, callback?: HandlerResult) {
+        const handler = this.handlers[name]
+        if (!handler && callback) {
+            callback({code: ErrCodeParameters, trigger: "sdk.handler.call", payload: "handler not found"})
+        }
+        handler(params, callback ?? NoneHandlerResult)
     }
 
     /**
@@ -836,13 +855,15 @@ export class CoreSDK {
     /**
      * 刷新token
      * @param params
+     * @param user
      * @param callback
      * @protected
      */
-    protected _RefreshToken(params: Record<string, any>, callback?:HandlerResult) {
+    protected _RefreshToken(params: Record<string, any>, user: User, callback?: HandlerResult) {
+        if (!this.authenticated) return
         const handler = this.handlers[TimerTokenRefresh]
         if (!handler) return
-        handler(params, callback ?? NoneHandlerResult)
+        handler({params, user}, callback ?? NoneHandlerResult)
     }
 
 
@@ -928,7 +949,7 @@ export class CoreSDK {
                 }
                 const handler = this.handlers[HandlerAuthenticate]
                 if (!handler) {
-                    callback({code: ErrCodeSDK, trigger: "", payload: "authenticate handler not found"})
+                    callback({code: ErrCodeSDK, trigger: "sdk.login", payload: "authenticate handler not found"})
                 }
                 handler(params, result => {
                     if (result.code !== CodeSuccess) {
@@ -1003,7 +1024,8 @@ export class CoreSDK {
         if (!handler) {
             callback({code: ErrCodeSDK, trigger: "pay", payload: "pay handler not found"})
         }
-        handler(params, result => {
+        const user = this.user
+        handler({order, params, user}, result => {
             if (result.code !== CodeSuccess) {
                 this._Publish(ErrHooks.pay, result);
                 log.error("get payment methods failed: ", result.trigger)
@@ -1015,14 +1037,24 @@ export class CoreSDK {
             log.debug("pay with handler: ", trigger)
             const _handler = this.handlers[trigger]
             if (!_handler) {
-                this._Publish(ErrHooks.pay, {code: ErrCodeHandlerNotFound, trigger: 'pay.methods', payload: result});
+                const res = {code: ErrCodeHandlerNotFound, trigger: 'pay.methods', payload: result}
+                this._Publish(ErrHooks.pay, res);
                 log.error("pay handler: ", trigger, ", not found")
-                result.code = ErrCodeHandlerNotFound
-                callback(result)
+                callback(res)
+                return
             }
-            _handler({order, params, payload: result.payload}, _result => {
+            _handler({order, params, user, payment: result.payload}, _result => {
                 if (_result.code !== CodeSuccess) {
                     this._Publish(ErrHooks.pay, _result);
+                } else {
+                    this._Publish(HookPayed,
+                        {
+                            code: CodeSuccess, trigger: _result.trigger,
+                            payload: {
+                                request: {order, params, user, payment: result.payload},
+                                response: _result.payload
+                            }
+                        })
                 }
                 callback(_result)
             })
