@@ -3,7 +3,7 @@ import 'url-search-params-polyfill';
 // eslint-disable-next-line import/no-extraneous-dependencies
 import {
     GameOrder, GameRole, HandlerResult, HandlerResults, Callback, PluginLoder, SharedInfo,
-    Result, Results, Tracker, User, VersionInfo, Payment, Plugin, ApplicationInfo, CacheStorage,
+    Result, Results, Tracker, User, VersionInfo, Payment, Plugin, Application, CacheStorage,
     ExtHandler, LoginHook, HandlerPayMethod, HandlerPay
 } from "minigame-typings";
 import { Md5 } from "ts-md5";
@@ -541,7 +541,7 @@ export class CoreSDK {
      * 应用信息
      * @private
      */
-    private _app: ApplicationInfo;
+    private _app: Application;
     /**
      * 缓存接口
      * @private
@@ -583,7 +583,7 @@ export class CoreSDK {
     /**
      * 应用
      */
-    public get app(): ApplicationInfo {
+    public get app(): Application {
         return this._app
     }
 
@@ -594,7 +594,7 @@ export class CoreSDK {
         return this._user !== null
     }
 
-    constructor(app: ApplicationInfo, storage: CacheStorage) {
+    constructor(app: Application, storage: CacheStorage) {
         this._app = app
         this.storage = storage
     }
