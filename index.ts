@@ -968,30 +968,36 @@ export class CoreSDK {
                     if (!handler) {
                         callback({code: ErrCodeSDK, trigger: "login", payload: "login handler not found"})
                     }
-                    _handler(result.payload, _result => {
-                        if (_result.code !== CodeSuccess) {
-                            this._Publish(ErrHooks.login, _result);
-                            callback(_result)
+                    _handler(result.payload, logged => {
+                        if (logged.code !== CodeSuccess) {
+                            this._Publish(ErrHooks.login, logged);
+                            callback(logged)
                             return
                         }
+                        const user: User = logged.payload
                         log.info("login success")
-                        log.debug("login payload: ", _result.payload)
-                        // 登录后调用
-                        this._after_login.forEach(h => h(_result.payload))
-                        // 重上报调用
-                        this._RetryReport({user: _result.payload})
+                        log.debug("login payload: ", user)
                         // 设置用户
-                        this._user = _result.payload
+                        this._user = user
+                        // 登录后调用
+                        this._after_login.forEach(h => h(user))
+                        // 重上报调用
+                        this._RetryReport({user})
                         // 插件登录后
                         if (this._plugins.length > 0) {
-                            this._plugins.forEach(p => p.AfterLogin(_result.payload))
+                            this._plugins.forEach(p => p.AfterLogin(user))
                         }
                         // 用户登录追踪
-                        this.UserLogin(_result.payload)
+                        if (user.registered) {
+                            this.UserLogin(user)
+                        } else {
+                            this.UserCreate()
+                        }
+
                         callback({
                             code: CodeSuccess,
                             trigger: "login.sdk",
-                            payload: _result.payload
+                            payload: user
                         })
                         // 启动token刷新定时器
                         this._StartTimer(TimerTokenRefresh, params)
@@ -1092,7 +1098,7 @@ export class CoreSDK {
      * 用户创建追踪
      * @param callback
      */
-    UserCreate(callback?: HandlerResults): void {
+    protected UserCreate(callback?: HandlerResults): void {
         this._HandlerTrace("UserCreate", true, {}, callback)
     }
 
@@ -1101,7 +1107,7 @@ export class CoreSDK {
      * @param user
      * @param callback
      */
-    UserLogin(user: User, callback?: HandlerResults): void {
+    protected UserLogin(user: User, callback?: HandlerResults): void {
         this._HandlerTrace("UserLogin", false, {user}, callback)
     }
 
