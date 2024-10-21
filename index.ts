@@ -4,7 +4,7 @@ import 'url-search-params-polyfill';
 import {
     GameOrder, GameRole, HandlerResult, HandlerResults, Callback, PluginLoder, SharedInfo,
     Result, Results, Tracker, User, VersionInfo, Payment, Plugin, Application, CacheStorage,
-    ExtHandler, LoginHook, HandlerPayMethod, HandlerPay, Endpoint
+    ExtHandler, LoginHook, HandlerPayMethod, HandlerPay, Endpoint, ShareLink
 } from "minigame-typings";
 import { Md5 } from "ts-md5";
 import { sha1 } from "js-sha1";
@@ -699,7 +699,7 @@ export class CoreSDK {
     /**
      * 分享信息
      */
-    get shared() {
+    get shared(): ShareLink {
         return this._shared.link
     }
 
