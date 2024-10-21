@@ -866,7 +866,7 @@ export class CoreSDK {
      */
     protected _Complete(key: string, result: Result): boolean {
         if (!(key in this._observers)) {
-            this._observers[key] = []
+            return false
         }
         const observers = this._observers[key]
         delete this._observers[key]
