@@ -665,9 +665,9 @@ export class CoreSDK {
      * @private
      */
     private _app: Application;
+
     /**
      * 缓存接口
-     * @private
      */
     public readonly storage: CacheStorage;
 
