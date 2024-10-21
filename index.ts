@@ -4,7 +4,7 @@ import 'url-search-params-polyfill';
 import {
     GameOrder, GameRole, HandlerResult, HandlerResults, Callback, PluginLoder, SharedInfo,
     Result, Results, Tracker, User, VersionInfo, Payment, Plugin, Application, CacheStorage,
-    ExtHandler, LoginHook, HandlerPayMethod, HandlerPay
+    ExtHandler, LoginHook, HandlerPayMethod, HandlerPay, Endpoint
 } from "minigame-typings";
 import { Md5 } from "ts-md5";
 import { sha1 } from "js-sha1";
@@ -480,7 +480,7 @@ export function CallbackWithRetry(trigger: string, callback: () => Promise<Resul
 /**
  * 异步事件,用于模拟http事件
  */
-class EventEmitter {
+export class EventEmitter {
 
     private events: { [key: string]: Callback[] } = {};
 
@@ -562,6 +562,39 @@ export function ProcessQueue<T>(queue: AsyncQueue<T>, handler: (item: T) => Prom
     };
     // 开始处理队列中的元素
     processNext();
+}
+
+
+/**
+ * 随机获取endpoint
+ */
+export class Endpoints {
+
+    private endpoints: Endpoint[]
+
+    private length: number
+
+    constructor(endpoints: Endpoint[]) {
+        this.endpoints = endpoints
+        this.length = endpoints.length
+    }
+
+    get url(): string {
+        return this.anyone.url
+    }
+
+    get anyone(): Endpoint {
+        if (this.endpoints.length === 1) {
+            return this.endpoints[0]
+        }
+        return this.endpoints[Math.floor(Math.random() * this.length)]
+    }
+
+    public reset(endpoints: Endpoint[]) {
+        this.endpoints = endpoints
+        this.length = endpoints.length
+    }
+
 }
 
 
