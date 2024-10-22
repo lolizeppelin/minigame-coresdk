@@ -1,6 +1,6 @@
 {
     "name": "minigame-coresdk",
-    "version": "2.0.1",
+    "version": "2.0.2",
     "private": false,
     "description": "minigame sdk core libs",
     "main": "dist/index.js",
@@ -10,14 +10,8 @@
         "src"
     ],
     "scripts": {
-        "lint": "eslint src test",
-        "dev": "rimraf dist types && cross-env NODE_ENV=development webpack-dev-server --config ./scripts/webpack.dev.js",
         "build": "cross-env NODE_ENV=production webpack --config ./scripts/webpack.prod.js && copyfiles -f types/index.d.ts dist/",
-        "publish": "npm publish",
-        "release": "standard-version",
-        "release-major": "standard-version --release-as major",
-        "release-minor": "standard-version --release-as minor",
-        "release-patch": "standard-version --release-as patch"
+        "publish": "npm publish"
     },
     "repository": {
         "type": "git",
@@ -34,7 +28,7 @@
         "base64url": "3.0.1"
     },
     "devDependencies": {
-        "minigame-typings": "^1.0.0",
+        "minigame-typings": "^1.1.0",
         "@babel/core": "7.25.2",
         "babel-loader": "8.4.1",
         "@babel/plugin-transform-runtime": "^7.16.5",

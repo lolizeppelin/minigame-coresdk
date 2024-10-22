@@ -1049,6 +1049,7 @@ export class CoreSDK {
 
     /**
      * 登录
+     * 登录成功时, callback返回值中的payload结构为User
      */
     Login(params: Record<string, any>, callback: HandlerResult) {
         if (this.authenticated) {
@@ -1149,12 +1150,12 @@ export class CoreSDK {
             })
             return
         }
-        const handler = this.handlers[HandlerPayMethods]
-        if (!handler) {
+        const selector = this.handlers[HandlerPayMethods]
+        if (!selector) {
             callback({code: ErrCodeSDK, trigger: "pay", payload: "pay handler not found"})
         }
         const user = this.user
-        handler({order, params, user}, result => {
+        selector({order, params, user}, result => {
             if (result.code !== CodeSuccess) {
                 this._Publish(ErrHooks.pay, result);
                 log.error("get payment methods failed: ", result.trigger)
@@ -1164,15 +1165,15 @@ export class CoreSDK {
             }
             const trigger = result.trigger
             log.debug("pay with handler: ", trigger)
-            const _handler = this.handlers[trigger]
-            if (!_handler) {
+            const submit = this.handlers[trigger]
+            if (!submit) {
                 const res = {code: ErrCodeHandlerNotFound, trigger: 'pay.methods', payload: result}
                 this._Publish(ErrHooks.pay, res);
                 log.error("pay handler: ", trigger, ", not found")
                 callback(res)
                 return
             }
-            _handler({order, params, user, payment: result.payload}, _result => {
+            submit({order, params, user, payment: result.payload}, _result => {
                 if (_result.code !== CodeSuccess) {
                     this._Publish(ErrHooks.pay, _result);
                 } else {
