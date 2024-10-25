@@ -779,6 +779,41 @@ export class CoreSDK {
         handler(params, callback ?? NoneHandlerResult)
     }
 
+
+    protected PluginExecute(plugin: string, params?: any): Result {
+        // eslint-disable-next-line no-restricted-syntax
+        for (const p of this._plugins) {
+            if (p.name === plugin) {
+                try {
+                    return p.Execute(params)
+                } catch (e) {
+                    return {code: ErrUnknown, trigger: "plugin.execute.exc", payload: e}
+                }
+            }
+        }
+        return {code: ErrCodeHandlerNotFound, trigger: "plugin.execute.notfound", payload: `plugin ${plugin} not found`}
+    }
+
+    protected PluginCall(plugin: string, params: any, callback: HandlerResult): void {
+        // eslint-disable-next-line no-restricted-syntax
+        for (const p of this._plugins) {
+            if (p.name === plugin) {
+                try {
+                    p.Call(params, callback)
+                    return
+                } catch (e) {
+                    callback({code: ErrUnknown, trigger: "plugin.call.exc", payload: e})
+                }
+            }
+        }
+        callback({
+            code: ErrCodeHandlerNotFound,
+            trigger: "plugin.call.notfound",
+            payload: `plugin ${plugin} not found`
+        })
+    }
+
+
     /**
      * 注册插件加载器
      * @param name
