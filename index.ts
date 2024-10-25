@@ -791,7 +791,7 @@ export class CoreSDK {
                 }
             }
         }
-        return {code: ErrCodeHandlerNotFound, trigger: "plugin.execute.notfound", payload: `plugin ${plugin} not found`}
+        return {code: ErrCodeHandlerNotFound, trigger: "plugin.execute.notfound", payload: `plugin ${plugin} not found or disabled`}
     }
 
     protected PluginCall(plugin: string, params: any, callback: HandlerResult): void {
@@ -809,7 +809,7 @@ export class CoreSDK {
         callback({
             code: ErrCodeHandlerNotFound,
             trigger: "plugin.call.notfound",
-            payload: `plugin ${plugin} not found`
+            payload: `plugin ${plugin} not found or disabled`
         })
     }
 
