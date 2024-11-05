@@ -1,6 +1,6 @@
 {
     "name": "minigame-coresdk",
-    "version": "2.1.0",
+    "version": "2.2.0",
     "private": false,
     "description": "minigame sdk core libs",
     "main": "dist/index.js",
@@ -10,7 +10,7 @@
         "src"
     ],
     "scripts": {
-        "build": "cross-env NODE_ENV=production webpack --config ./scripts/webpack.prod.js && copyfiles -f types/index.d.ts dist/",
+        "build": "cross-env NODE_ENV=production webpack --config ./scripts/webpack.prod.js && node scripts/buildTypes.mjs",
         "publish": "npm publish"
     },
     "repository": {
@@ -28,7 +28,7 @@
         "base64url": "3.0.1"
     },
     "devDependencies": {
-        "minigame-typings": "^1.1.0",
+        "minigame-typings": "1.2.0",
         "@babel/core": "7.25.2",
         "babel-loader": "8.4.1",
         "@babel/plugin-transform-runtime": "^7.16.5",
@@ -44,7 +44,6 @@
         "cross-env": "^7.0.3",
         "dts-bundle-generator": "^8.1.2",
         "dts-bundle-webpack": "^1.0.2",
-        "copyfiles": "^2.4.1",
         "eslint": "^8.4.1",
         "eslint-config-airbnb-base": "^15.0.0",
         "eslint-config-prettier": "^8.3.0",
