@@ -263,17 +263,17 @@ export class CoreSDK {
      * @constructor
      */
     public Publish(name: string, result: MiniGameTypes.Result) {
-        this._Publish(`user.${name}`, result)
+        this._Publish(`USER.${name.toLowerCase()}`, result)
     }
 
     /**
      * 注册用户钩子
-     * @param name
+     * @param name  name会调用toLowerCase,请使用小写与逗号组合
      * @param callback
      * @constructor
      */
     public RegHook(name: string, callback: MiniGameTypes.HandlerResult) {
-        this._RegHook(`user.${name}`, callback)
+        this._RegHook(`USER.${name.toLowerCase()}`, callback)
     }
 
     /**
