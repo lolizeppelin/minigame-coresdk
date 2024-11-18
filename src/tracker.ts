@@ -27,7 +27,7 @@ export class BaseTracker implements MiniGameTypes.Tracker {
     protected _event_handlers: Record<string,
         (payload: {
             event: string;
-            params: Record<string, any>;
+            params: Record<string, any> | null | undefined;
         }, callback: MiniGameTypes.HandlerResult) => void> = {}
 
     /**
@@ -38,7 +38,7 @@ export class BaseTracker implements MiniGameTypes.Tracker {
         (payload: {
             event: string;
             user: MiniGameTypes.User;
-            params: Record<string, any>;
+            params: Record<string, any> | null | undefined;
         }, callback: MiniGameTypes.HandlerResult) => void> = {}
 
     /**
@@ -49,7 +49,7 @@ export class BaseTracker implements MiniGameTypes.Tracker {
         event: string;
         user: MiniGameTypes.User;
         role: MiniGameTypes.GameRole;
-        params: Record<string, any> | null;
+        params: Record<string, any> | null | undefined;
     }, callback: MiniGameTypes.HandlerResult) => void> = {}
 
     /**
@@ -62,7 +62,7 @@ export class BaseTracker implements MiniGameTypes.Tracker {
             event: string;
             handler: (payload: {
                 event: string;
-                params: Record<string, any>;
+                params: Record<string, any> | null | undefined;
             }, callback: MiniGameTypes.HandlerResult) => void
         };
         user?: {
@@ -70,7 +70,7 @@ export class BaseTracker implements MiniGameTypes.Tracker {
             handler: (payload: {
                 event: string;
                 user: MiniGameTypes.User;
-                params: Record<string, any>;
+                params: Record<string, any> | null | undefined;
             }, callback: MiniGameTypes.HandlerResult) => void;
         };
         role?: {
@@ -79,7 +79,7 @@ export class BaseTracker implements MiniGameTypes.Tracker {
                 event: string;
                 user: MiniGameTypes.User;
                 role: MiniGameTypes.GameRole;
-                params: Record<string, any> | null;
+                params: Record<string, any> | null | undefined;
             }, callback: MiniGameTypes.HandlerResult) => void;
         };
     }): void {
@@ -101,7 +101,7 @@ export class BaseTracker implements MiniGameTypes.Tracker {
 
     PushEvent(payload: {
         event: string;
-        params: Record<string, any>,
+        params: Record<string, any> | null | undefined;
     }, callback: MiniGameTypes.HandlerResult): void {
         const handler = this._event_handlers[payload.event]
         if (!handler) {
@@ -109,7 +109,6 @@ export class BaseTracker implements MiniGameTypes.Tracker {
             return
         }
         handler.call(this, payload, callback)
-
     }
 
 
@@ -137,7 +136,7 @@ export class BaseTracker implements MiniGameTypes.Tracker {
         callback({code: consts.CodeSuccess, trigger: this.name, payload: null})
     }
 
-    UserEvent(payload: { event: string, user: MiniGameTypes.User, params: Record<string, any> },
+    UserEvent(payload: { event: string, user: MiniGameTypes.User, params: Record<string, any> | null | undefined; },
               callback: MiniGameTypes.HandlerResult): void {
         const handler = this._user_event_handlers[payload.event]
         if (!handler) {
@@ -177,7 +176,7 @@ export class BaseTracker implements MiniGameTypes.Tracker {
 
     RoleEvent(payload: {
                   event: string, user: MiniGameTypes.User, role: MiniGameTypes.GameRole,
-                  params: Record<string, any> | null
+                  params: Record<string, any> | null | undefined;
               },
               callback: MiniGameTypes.HandlerResult): void {
         const handler = this._role_event_handlers[payload.event]

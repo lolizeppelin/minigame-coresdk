@@ -676,7 +676,8 @@ export class CoreSDK {
      * @param callback
      * @constructor
      */
-    PushEvent(event: string, params: Record<string, any>, callback?: MiniGameTypes.HandlerResults): void {
+    PushEvent(event: string, params: Record<string, any> | null,
+              callback?: MiniGameTypes.HandlerResults): void {
         this._HandlerTrace("PushEvent", false, {event, params}, callback)
     }
 
@@ -714,7 +715,7 @@ export class CoreSDK {
      * @param params
      * @param callback
      */
-    UserEvent(event: string, params: Record<string, any>,
+    UserEvent(event: string, params: Record<string, any> | null,
               callback?: MiniGameTypes.HandlerResults): void {
         this._HandlerTrace("UserEvent", true, {event, params}, callback)
     }
