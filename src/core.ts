@@ -670,13 +670,13 @@ export class CoreSDK {
 
 
     /**
-     * 未登录事件
+     * 无需登录可上报事件
      * @param event
      * @param params
      * @param callback
      * @constructor
      */
-    PushEvent(event: string, params: Record<string, any> | null,
+    PushEvent(event: string, params?: Record<string, any> | null,
               callback?: MiniGameTypes.HandlerResults): void {
         this._HandlerTrace("PushEvent", false, {event, params}, callback)
     }
@@ -684,6 +684,7 @@ export class CoreSDK {
     /**
      * 用户创建追踪
      * @param callback
+     * @protected
      */
     protected UserCreate(callback?: MiniGameTypes.HandlerResults): void {
         this._HandlerTrace("UserCreate", true, {}, callback)
@@ -699,7 +700,7 @@ export class CoreSDK {
     }
 
     /**
-     * 用户登出追踪
+     * 用户登出追踪(必须完成用户登录)
      * @param role
      * @param callback
      */
@@ -710,18 +711,18 @@ export class CoreSDK {
     }
 
     /**
-     * 用户通用事件追踪
+     * 用户通用事件追踪(必须完成用户登录)
      * @param event
      * @param params
      * @param callback
      */
-    UserEvent(event: string, params: Record<string, any> | null,
+    UserEvent(event: string, params?: Record<string, any> | null,
               callback?: MiniGameTypes.HandlerResults): void {
         this._HandlerTrace("UserEvent", true, {event, params}, callback)
     }
 
     /**
-     * 用户支付追踪
+     * 用户支付追踪(必须完成用户登录)
      * @param id    本地订单号
      * @param payment  支付信息
      * @param params
@@ -734,7 +735,7 @@ export class CoreSDK {
 
 
     /**
-     * 角色登录追踪
+     * 角色登录追踪(必须完成用户登录)
      * @param role
      * @param callback
      */
@@ -743,7 +744,7 @@ export class CoreSDK {
     }
 
     /**
-     * 角色创建追踪
+     * 角色创建追踪(必须完成用户登录)
      * @param role
      * @param callback
      */
@@ -752,7 +753,7 @@ export class CoreSDK {
     }
 
     /**
-     * 角色升级追踪
+     * 角色升级追踪(必须完成用户登录)
      * @param role     角色
      * @param level    升级的等级
      * @param callback
@@ -762,7 +763,7 @@ export class CoreSDK {
     }
 
     /**
-     * 角色支付追踪
+     * 角色支付追踪(必须完成用户登录)
      * @param id    本地订单号
      * @param order 下单信息
      * @param payment  支付信息
@@ -775,13 +776,13 @@ export class CoreSDK {
     }
 
     /**
-     * 角色通用事件追踪
+     * 角色通用事件追踪(必须完成用户登录)
      * @param event
      * @param role
      * @param params
      * @param callback
      */
-    RoleEvent(event: string, role: MiniGameTypes.GameRole, params: Record<string, any> | null,
+    RoleEvent(event: string, role: MiniGameTypes.GameRole, params?: Record<string, any> | null,
               callback?: MiniGameTypes.HandlerResults): void {
         this._HandlerTrace("RoleEvent", true, {role, event, params}, callback)
     }
