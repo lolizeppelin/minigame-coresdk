@@ -88,9 +88,6 @@ export function ParseQuery(query?: string): Record<string, string> {
 export function BuildQuery(data?: Record<string, string>): string {
     if (!data) return ""
     const parameters = new URLSearchParams();
-    parameters.forEach((v, k) => {
-        parameters.set(k, v);
-    })
     Object.keys(data).forEach(k => {
         parameters.set(k, data[k]);
     })
