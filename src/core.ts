@@ -78,6 +78,11 @@ export class CoreSDK {
      */
     public readonly storage: MiniGameTypes.CacheStorage;
 
+    /**
+     * http 请求api
+     */
+    public readonly request: MiniGameTypes.HttpRequestHandler;
+
 
     /**
      * 已经加载的插件
@@ -124,9 +129,11 @@ export class CoreSDK {
         return this._user !== null
     }
 
-    constructor(app: MiniGameTypes.Application, storage: MiniGameTypes.CacheStorage) {
+    constructor(app: MiniGameTypes.Application, request: MiniGameTypes.HttpRequestHandler,
+                storage: MiniGameTypes.CacheStorage) {
         this._app = app
         this.storage = storage
+        this.request = request
     }
 
     /**

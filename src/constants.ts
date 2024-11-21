@@ -66,8 +66,8 @@ export const ErrCodeHandlerNotFound = 15
 
 
 export const ErrHooks = {
-    initialize: "error.init",
-    plugin: "error.plugin",
-    login: "error.login",
-    pay: "error.pay"
+    initialize: "SYS.error.init",
+    plugin: "SYS,error.plugin",
+    login: "SYS.error.login",
+    pay: "SYS.error.pay"
 }
