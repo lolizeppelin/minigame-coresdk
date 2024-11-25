@@ -66,7 +66,6 @@ export class AsyncQueue<T> {
  * 执行异步队列
  * @param queue
  * @param handler
- * @constructor
  */
 export function ProcessQueue<T>(queue: AsyncQueue<T>, handler: (item: T) => Promise<void>) {
     const processNext = () => {

@@ -50,6 +50,9 @@ class Endpoints implements MiniGameTypes.Endpoints {
     }
 }
 
+/**
+ * 服务端点转化为Endpoints对象
+ */
 export function LoadEndpoints(app: MiniGameTypes.Application, service: string): MiniGameTypes.Endpoints | null {
     const endpoints: MiniGameTypes.Endpoint[] = app.services[service];
     if (!endpoints || !endpoints.length) return null;
