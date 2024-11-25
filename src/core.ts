@@ -289,7 +289,7 @@ export class CoreSDK {
      * @param callback
      */
     protected _RegHook(name: string, callback: MiniGameTypes.HandlerResult) {
-        if (this._hooks[name]) {
+        if (!this._hooks[name]) {
             this._hooks[name] = []
         }
         log.info('register hook: ', name)
