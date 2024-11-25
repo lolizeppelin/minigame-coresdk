@@ -669,7 +669,11 @@ export class CoreSDK {
      * @param callback 回调
      */
     public ValidateText(content: string, options: Record<string, any>, callback: MiniGameTypes.HandlerResult) {
-        this.Call(consts.HandlerText, {content, options}, callback)
+        if (!this.authenticated) {
+            callback({code: consts.ErrCodeUnAuthenticate, trigger: 'validate.text', payload: content})
+            return
+        }
+        this.Call(consts.HandlerText, {content, options, user: this.user}, callback)
     }
 
 
