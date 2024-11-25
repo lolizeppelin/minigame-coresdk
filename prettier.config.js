@@ -4,7 +4,7 @@ module.exports = {
   printWidth: 120,
 
   // tab健的空格数
-  tabWidth: 2,
+  tabWidth: 4,
 
   // 是否在对象中的括号之间打印空格，{a:5}格式化为{ a: 5 }
   bracketSpacing: true,
@@ -22,7 +22,7 @@ module.exports = {
   trailingComma: 'all',
 
   // 是否加分号，项目中统一加分号
-  semi: true,
+  semi: false,
 
   // 是否使用tab格式化： 不使用
   useTabs: false,

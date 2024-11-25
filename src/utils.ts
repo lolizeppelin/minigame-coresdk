@@ -183,6 +183,18 @@ export function ParseURL(url: string) {
     }
 }
 
+/**
+ * 列表中随机元素获取
+ * @param list
+ */
+export function RandomElement<T>(list: T[]): T | undefined {
+    if (list.length === 0) {
+        return undefined; // 如果列表为空，返回 undefined
+    }
+    const randomIndex = Math.floor(Math.random() * list.length);
+    return list[randomIndex];
+}
+
 
 /**
  * 替换为 sandbox url
@@ -232,7 +244,7 @@ export function LoadVersion(version: string): MiniGameTypes.VersionInfo | null {
  *
  * @param v1
  * @param v2
- * @constructor
+ * @return  -1 小于 0 等于 1 大于
  */
 export function CmpVer(v1: MiniGameTypes.VersionInfo, v2: MiniGameTypes.VersionInfo): -1 | 0 | 1 {
 

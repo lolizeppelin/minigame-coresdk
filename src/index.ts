@@ -1,14 +1,13 @@
-import log, { Logger } from "loglevel";
+import log, { Logger } from 'loglevel'
 
-log.setLevel("error", false)
-
+log.setLevel('error', false)
 
 export * from './constants'
 export * from './utils'
 export * from './core'
 export * from './tracker'
 export * from './queue'
-
+export * from './endpoints'
 
 /**
  * 公共日志接口模块
