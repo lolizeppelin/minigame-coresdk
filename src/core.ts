@@ -644,20 +644,20 @@ export class CoreSDK {
                 callback(res)
                 return
             }
-            submit({order, params, user, payment: result.payload}, _result => {
-                if (_result.code !== consts.CodeSuccess) {
-                    this._Publish(consts.ErrHooks.pay, _result);
+            submit({order, params, user, payment: result.payload}, res => {
+                if (res.code !== consts.CodeSuccess) {
+                    this._Publish(consts.ErrHooks.pay, res);
                 } else {
                     this._Publish(consts.HookPayed,
                         {
-                            code: consts.CodeSuccess, trigger: _result.trigger,
+                            code: consts.CodeSuccess, trigger: res.trigger,
                             payload: {
                                 request: {order, params, user, payment: result.payload},
-                                response: _result.payload
+                                response: res.payload
                             }
                         })
                 }
-                callback(_result)
+                callback(res)
             })
         })
     }
