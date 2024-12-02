@@ -25,6 +25,9 @@ module.exports = {
             '@docs': resolve(__dirname, '../docs'),
             '@public': resolve(__dirname, '../public'),
         },
+        fallback: {
+            "url": require.resolve("url")
+        },
         extensions: ['.ts', '.tsx', '.js', '.d.ts'],
     },
     plugins: [
