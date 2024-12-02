@@ -1,12 +1,15 @@
 /*-------------------- 方法 --------------------*/
 
-import log from "loglevel";
-import base64url from "base64url";
-import { Md5 } from "ts-md5";
-import { sha1 } from "js-sha1";
-import * as consts from './constants'
+import log from "loglevel"
+import base64url from "base64url"
+import { Md5 } from "ts-md5"
+import { sha1 } from "js-sha1"
+import * as consts from "./constants"
 
 const Pattern = /^\d+(\.\d+){0,2}$/
+
+
+const BaseCharacters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
 
 
 function format(input: number, padLength: number): string {
@@ -72,7 +75,7 @@ export function NewResults(trigger: string, results?: MiniGameTypes.Result[]) {
  */
 export function ParseQuery(query?: string): Record<string, string> {
     if (!query) return {}
-    const parameters = new URLSearchParams(query);
+    const parameters = new URLSearchParams(query)
     const m: Record<string, string> = {}
     parameters.forEach((v, k) => {
         m[k] = v
@@ -87,11 +90,11 @@ export function ParseQuery(query?: string): Record<string, string> {
  */
 export function BuildQuery(data?: Record<string, string>): string {
     if (!data) return ""
-    const parameters = new URLSearchParams();
+    const parameters = new URLSearchParams()
     Object.keys(data).forEach(k => {
-        parameters.set(k, data[k]);
+        parameters.set(k, data[k])
     })
-    parameters.sort();
+    parameters.sort()
     return parameters.toString()
 }
 
@@ -101,14 +104,14 @@ export function BuildQuery(data?: Record<string, string>): string {
  * @param blank 是否忽略空白字段
  */
 export function ParamsMerge(params: Record<string, string>, blank: boolean): string {
-    let s = '';
+    let s = ""
     Object.keys(params).sort().forEach(key => {
         if (blank || params[key] !== "") {
             s += key + "=" + params[key] + "&"
         }
     })
-    if (s.endsWith('&')) {
-        return s.slice(0, -1);
+    if (s.endsWith("&")) {
+        return s.slice(0, -1)
     }
     return s
 }
@@ -119,13 +122,13 @@ export function ParamsMerge(params: Record<string, string>, blank: boolean): str
  * @param blank 是否忽略空白字段
  */
 export function ParamsCompress(params: Record<string, string>, blank: boolean): string {
-    let s = '';
+    let s = ""
     Object.keys(params).sort().forEach(key => {
         if (blank || params[key] !== "") {
             s += params[key]
         }
     })
-    return s;
+    return s
 }
 
 /**
@@ -160,8 +163,8 @@ export function UnixNow(): number {
  * 当前时间 格式  1970-01-01 00:00:00
  */
 export function DateTimeNow(): string {
-    const date = new Date();
-    return `${format(date.getFullYear(), 4)}-${format(date.getMonth() + 1, 2)}-${format(date.getDate(), 2)} ${format(date.getHours(), 2)}:${format(date.getMinutes(), 2)}:${format(date.getSeconds(), 2)}`;
+    const date = new Date()
+    return `${format(date.getFullYear(), 4)}-${format(date.getMonth() + 1, 2)}-${format(date.getDate(), 2)} ${format(date.getHours(), 2)}:${format(date.getMinutes(), 2)}:${format(date.getSeconds(), 2)}`
 }
 
 /**
@@ -169,7 +172,7 @@ export function DateTimeNow(): string {
  * @param url
  */
 export function ParseURL(url: string) {
-    const match = url.match(/^(https?:)\/\/(([^:/?#]*)(?::([0-9]+))?)(\/?[^?#]*)(\?[^#]*|)(#.*|)$/);
+    const match = url.match(/^(https?:)\/\/(([^:/?#]*)(?::([0-9]+))?)(\/?[^?#]*)(\?[^#]*|)(#.*|)$/)
     if (!match) throw Error("Parse url failed")
     return {
         href: url,
@@ -189,10 +192,24 @@ export function ParseURL(url: string) {
  */
 export function RandomElement<T>(list: T[]): T | undefined {
     if (list.length === 0) {
-        return undefined; // 如果列表为空，返回 undefined
+        return undefined // 如果列表为空，返回 undefined
     }
-    const randomIndex = Math.floor(Math.random() * list.length);
-    return list[randomIndex];
+    const randomIndex = Math.floor(Math.random() * list.length)
+    return list[randomIndex]
+}
+
+
+/**
+ * 生成只包含62个标准字符的随机字符串
+ * @param length
+ */
+export function RandomBaseString(length: number): string {
+    let result = ""
+    const charactersLength = BaseCharacters.length
+    for (let i = 0; i < length; i += 1) {
+        result += BaseCharacters.charAt(Math.floor(Math.random() * charactersLength))
+    }
+    return result
 }
 
 
@@ -202,10 +219,10 @@ export function RandomElement<T>(list: T[]): T | undefined {
  * @param sandbox
  */
 function SandboxUrl(url: string, sandbox: boolean): string {
-    const obj = ParseURL(url);
+    const obj = ParseURL(url)
     const link = sandbox ? `${obj.protocol}//sandbox.${obj.host}${obj.pathname}` :
         `${obj.protocol}//${obj.host}${obj.pathname}`
-    return link.endsWith('/') ? link.slice(0, -1) : link
+    return link.endsWith("/") ? link.slice(0, -1) : link
 }
 
 /**
@@ -249,28 +266,28 @@ export function LoadVersion(version: string): MiniGameTypes.VersionInfo | null {
 export function CmpVer(v1: MiniGameTypes.VersionInfo, v2: MiniGameTypes.VersionInfo): -1 | 0 | 1 {
 
     if (v1.major > v2.major) {
-        return 1;
+        return 1
     }
     if (v1.major < v2.major) {
-        return -1;
+        return -1
     }
     // If major versions are equal, compare minor versions
     if (v1.minor > v2.minor) {
-        return 1;
+        return 1
     }
     if (v1.minor < v2.minor) {
-        return -1;
+        return -1
     }
 
     // If minor versions are equal, compare patch versions
     if (v1.patch > v2.patch) {
-        return 1;
+        return 1
     }
     if (v1.patch < v2.patch) {
-        return -1;
+        return -1
     }
     // If all versions are equal, return 0
-    return 0;
+    return 0
 
 }
 
@@ -283,7 +300,7 @@ export function CmpVer(v1: MiniGameTypes.VersionInfo, v2: MiniGameTypes.VersionI
 export function ResultMessage(result: MiniGameTypes.Result, prefix?: string): string {
     prefix = prefix ?? result.code === consts.CodeSuccess ? "result success" : "result failed"
     let payload = ""
-    if (typeof result.payload === 'string') {
+    if (typeof result.payload === "string") {
         payload = result.payload
     } else if (result.payload === null || result.payload === undefined) {
         payload = ""
@@ -309,7 +326,7 @@ export function ResultMessage(result: MiniGameTypes.Result, prefix?: string): st
 export function Delay(ms: number) {
     return new Promise(resolve => {
         setTimeout(resolve, ms)
-    });
+    })
 }
 
 /**
@@ -349,7 +366,7 @@ export function CallbackWithRetry(trigger: string, callback: () => Promise<MiniG
         const retry = (attempt: number) => {
             callback().then(resolve).catch((e) => {
                 if (attempt > retryTimes) {
-                    reject(e);
+                    reject(e)
                     return
                 }
                 /* ----延迟计算---- */
@@ -368,14 +385,14 @@ export function CallbackWithRetry(trigger: string, callback: () => Promise<MiniG
                     retry(attempt + 1)
                 } else {
                     log.debug(`async retry: ${trigger} ${attempt} times, delay ${delay} ms`)
-                    Delay(delay).then(_ => retry(attempt + 1));
+                    Delay(delay).then(_ => retry(attempt + 1))
                 }
 
-            });
-        };
+            })
+        }
 
-        retry(0);
-    });
+        retry(0)
+    })
 }
 
 
