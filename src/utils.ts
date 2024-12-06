@@ -426,8 +426,8 @@ export function ParseURI(uri: string, options?: URIOpts): URIComponent {
  * @param options
  * @constructor
  */
-export function URISerialize(uri: URIComponent, options: URIOpts): string {
-    return fastURI.serialize(uri)
+export function URISerialize(uri: URIComponent, options?: URIOpts): string {
+    return fastURI.serialize(uri, options)
 }
 
 
