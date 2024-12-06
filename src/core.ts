@@ -188,9 +188,10 @@ export class CoreSDK {
     protected Call(name: string, params: any, callback?: MiniGameTypes.HandlerResult) {
         const handler = this.handlers[name]
         if (!handler && callback) {
-            callback({code: consts.ErrCodeParameters, trigger: "sdk.handler.call", payload: "handler not found"})
+            callback({code: consts.ErrCodeHandlerNotFound, trigger: "sdk.handler.call", payload: "handler not found"})
+            return
         }
-        handler(params, callback ?? NoneHandlerResult)
+        handler && handler(params, callback ?? NoneHandlerResult)
     }
 
     /**
