@@ -420,6 +420,16 @@ export function ParseURI(uri: string, options?: URIOpts): URIComponent {
     return fastURI.parse(uri, options)
 }
 
+/**
+ * uri转string
+ * @param uri
+ * @param options
+ * @constructor
+ */
+export function URISerialize(uri: URIComponent, options: URIOpts): string {
+    return fastURI.serialize(uri)
+}
+
 
 /* ----------- base64 url api ------------*/
 
