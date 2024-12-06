@@ -5,6 +5,7 @@ import base64url from "base64url"
 import { Schema, Validator, ValidatorResult } from 'jsonschema'
 import { Md5 } from "ts-md5"
 import { sha1 } from "js-sha1"
+import fastURI, { Options as URIOpts, URIComponent } from 'fast-uri'
 import * as consts from "./constants"
 
 const Pattern = /^\d+(\.\d+){0,2}$/
@@ -407,6 +408,16 @@ export function CallbackWithRetry(trigger: string, callback: () => Promise<MiniG
 
         retry(0)
     })
+}
+
+
+/**
+ * uri解析
+ * @param uri
+ * @param options
+ */
+export function ParseURI(uri: string, options?: URIOpts): URIComponent {
+    return fastURI.parse(uri, options)
 }
 
 
