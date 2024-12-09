@@ -123,7 +123,7 @@ export function ParamsMerge(params: Record<string, string>, blank: boolean): str
  * 通用Record转换方法
  * @param data
  */
-function ConvertRecord(data?: Record<string, unknown>): Record<string, string> {
+export function ConvertRecord(data?: Record<string, unknown>): Record<string, string> {
     const result: Record<string, string> = {};
     if (!data) return result
     Object.keys(data).forEach(key => {
