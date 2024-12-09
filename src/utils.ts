@@ -118,6 +118,25 @@ export function ParamsMerge(params: Record<string, string>, blank: boolean): str
     return s
 }
 
+
+/**
+ * 通用Record转换方法
+ * @param data
+ */
+function ConvertRecord(data?: Record<string, unknown>): Record<string, string> {
+    const result: Record<string, string> = {};
+    if (!data) return result
+    Object.keys(data).forEach(key => {
+        const value = data[key];
+        if (value === null || value === undefined) {
+            return
+        }
+        result[key] = typeof value === 'object' ? JSON.stringify(value) : value.toString();
+    })
+    return result;
+}
+
+
 /** 类似ParamsMerge,不填充 "=" 进行拼接
  * url 参数合并(key+value模式)
  * @param params url params
