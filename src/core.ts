@@ -639,6 +639,7 @@ export class CoreSDK {
                         trigger: "login.sdk",
                         payload: user,
                     })
+
                     // 启动token刷新定时器
                     this._StartTimer(consts.TimerTokenRefresh, params)
                 })

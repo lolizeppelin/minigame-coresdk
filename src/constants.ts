@@ -23,6 +23,11 @@ export const HandlerMedia = "handler.image"
  */
 export const HandlerImage = "handler.media"
 
+/**
+ * 登录确认弹窗
+ */
+export const HandlerLoginConfirmDialog = "handler.login.confirm.dialog"
+
 export const HandlerPayMethods = "handler.pay.methods" // 支付方式
 
 export const HookPayed = "handler.payed" // 支付方式
