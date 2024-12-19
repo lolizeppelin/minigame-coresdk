@@ -1,19 +1,18 @@
 /*-------------------- 常量 --------------------*/
 
+export const TimerTokenRefresh = "sys.token.refresh"
 
-export const TimerTokenRefresh = 'sys.token.refresh'
+export const AppInitialize = "app.initialize"
 
-export const AppInitialize = 'app.initialize'
+export const HandlerAuthenticate = "handler.authenticate" // 认证
 
-export const HandlerAuthenticate = 'handler.authenticate'  // 认证
+export const HandlerLogin = "handler.login" // 登录
 
-export const HandlerLogin = 'handler.login'  // 登录
+export const HandlerText = "handler.text" // 文本检查
 
-export const HandlerText = 'handler.text'  // 文本检查
+export const HandlerPayMethods = "handler.pay.methods" // 支付方式
 
-export const HandlerPayMethods = 'handler.pay.methods'  // 支付方式
-
-export const HookPayed = 'handler.payed'  // 支付方式
+export const HookPayed = "handler.payed" // 支付方式
 
 /**
  * 内部错误(内部推送用)
@@ -22,9 +21,8 @@ export const ErrHooks = {
     initialize: "SYS.error.init",
     plugin: "SYS,error.plugin",
     login: "SYS.error.login",
-    pay: "SYS.error.pay"
+    pay: "SYS.error.pay",
 }
-
 
 /**
  * 未知错误
@@ -50,6 +48,16 @@ export const ErrCodeChannel = 2
  * 认证错误
  */
 export const ErrCodePlatform = 3
+
+/**
+ * 鉴权错误
+ */
+export const ErrCodePolicy = 4
+
+/**
+ * 数据错误
+ */
+export const ErrCodeData = 5
 
 /**
  * 未认证错误
@@ -85,5 +93,3 @@ export const ErrHttpStatus = 100
  * http返回载荷错误
  */
 export const ErrHttpRespPayload = 101
-
-
