@@ -22,6 +22,9 @@ function format(input: number, padLength: number): string {
     return s
 }
 
+export function FileTypeMatch(filename: string, extensions: string[]): boolean {
+    return extensions.some(ext => filename.toLowerCase().endsWith(ext));
+}
 
 /**
  * 空handler

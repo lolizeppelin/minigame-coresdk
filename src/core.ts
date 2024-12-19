@@ -1,9 +1,9 @@
 // eslint-disable-next-line max-classes-per-file
-import 'url-search-params-polyfill';
-import log from 'loglevel'
-import * as consts from './constants'
-import { NewResults, NoneHandlerResult, NoneHandlerResults } from './utils'
-
+import "url-search-params-polyfill"
+import { Options as URIOpts, URIComponent } from "fast-uri"
+import log from "loglevel"
+import * as consts from "./constants"
+import { FileTypeMatch, NewResults, NoneHandlerResult, NoneHandlerResults, ParseURI } from "./utils"
 
 /*-------------------- 类 --------------------*/
 
@@ -11,7 +11,14 @@ import { NewResults, NoneHandlerResult, NoneHandlerResults } from './utils'
  * 核心SDK
  */
 export class CoreSDK {
-
+    /**
+     * uri解析, 生成fast-uri URIComponent对象(rfc3986)
+     * @param uri
+     * @param options
+     */
+    public static ParseURI(uri: string, options?: URIOpts): URIComponent {
+        return ParseURI(uri, options)
+    }
 
     protected _after_authenticate: MiniGameTypes.Callback[] = []
 
@@ -46,49 +53,47 @@ export class CoreSDK {
      * 追踪器
      * @private
      */
-    private readonly _trackers: Record<string, MiniGameTypes.Tracker> = {};
+    private readonly _trackers: Record<string, MiniGameTypes.Tracker> = {}
 
     /**
      * 登录用户信息
      * @protected
      */
-    protected _user: MiniGameTypes.User | null = null;
+    protected _user: MiniGameTypes.User | null = null
 
     protected _shared: MiniGameTypes.SharedInfo = {
         link: {
             title: "",
             query: {},
             url: "",
-            path: ""
+            path: "",
         },
         callback: _ => {
             /** empty **/
-        }
-
+        },
     }
 
     /**
      * 应用信息
      * @private
      */
-    private _app: MiniGameTypes.Application;
+    private _app: MiniGameTypes.Application
 
     /**
      * 缓存接口
      */
-    public readonly storage: MiniGameTypes.CacheStorage;
+    public readonly storage: MiniGameTypes.CacheStorage
 
     /**
      * http 请求api
      */
-    public readonly request: MiniGameTypes.HttpRequestHandler;
-
+    public readonly request: MiniGameTypes.HttpRequestHandler
 
     /**
      * 已经加载的插件
      * @protected
      */
-    protected readonly _plugins: MiniGameTypes.Plugin[] = [];
+    protected readonly _plugins: MiniGameTypes.Plugin[] = []
 
     /** 插件加载器
      * plugin loaders
@@ -129,8 +134,11 @@ export class CoreSDK {
         return this._user !== null
     }
 
-    constructor(app: MiniGameTypes.Application, request: MiniGameTypes.HttpRequestHandler,
-                storage: MiniGameTypes.CacheStorage) {
+    constructor(
+        app: MiniGameTypes.Application,
+        request: MiniGameTypes.HttpRequestHandler,
+        storage: MiniGameTypes.CacheStorage
+    ) {
         this._app = app
         this.storage = storage
         this.request = request
@@ -139,7 +147,6 @@ export class CoreSDK {
     /**
      * 设置日志等级
      * @param level
-     * @constructor
      */
     public SetLogLevel(level: "error" | "warn" | "info" | "debug") {
         log.setLevel(level)
@@ -151,7 +158,6 @@ export class CoreSDK {
      * 注册支付
      * @param trigger
      * @param handler
-     * @constructor
      * @protected
      */
     protected RegPay(trigger: string, handler: MiniGameTypes.HandlerPay): void {
@@ -161,7 +167,6 @@ export class CoreSDK {
     /**
      * 注册支付方式获取
      * @param handler
-     * @constructor
      * @protected
      */
     protected RegPayMethods(handler: MiniGameTypes.HandlerPayMethod): void {
@@ -172,7 +177,6 @@ export class CoreSDK {
      * 注册处理函数
      * @param name
      * @param handler
-     * @constructor
      * @protected
      */
     protected RegHandler(name: string, handler: MiniGameTypes.ExtHandler): void {
@@ -188,7 +192,7 @@ export class CoreSDK {
     protected Call(name: string, params: any, callback?: MiniGameTypes.HandlerResult) {
         const handler = this.handlers[name]
         if (!handler && callback) {
-            callback({code: consts.ErrCodeHandlerNotFound, trigger: "sdk.handler.call", payload: "handler not found"})
+            callback({ code: consts.ErrCodeHandlerNotFound, trigger: "sdk.handler.call", payload: name })
             return
         }
         handler && handler(params, callback ?? NoneHandlerResult)
@@ -206,14 +210,14 @@ export class CoreSDK {
                 try {
                     return p.Execute(params)
                 } catch (e) {
-                    return {code: consts.ErrUnknown, trigger: "plugin.execute.exc", payload: e}
+                    return { code: consts.ErrUnknown, trigger: "plugin.execute.exc", payload: e }
                 }
             }
         }
         return {
             code: consts.ErrCodeHandlerNotFound,
             trigger: "plugin.execute.notfound",
-            payload: `plugin ${plugin} not found or disabled`
+            payload: `plugin ${plugin} not found or disabled`,
         }
     }
 
@@ -231,23 +235,21 @@ export class CoreSDK {
                     p.Call(params, callback)
                     return
                 } catch (e) {
-                    callback({code: consts.ErrUnknown, trigger: "plugin.call.exc", payload: e})
+                    callback({ code: consts.ErrUnknown, trigger: "plugin.call.exc", payload: e })
                 }
             }
         }
         callback({
             code: consts.ErrCodeHandlerNotFound,
             trigger: "plugin.call.notfound",
-            payload: `plugin ${plugin} not found or disabled`
+            payload: `plugin ${plugin} not found or disabled`,
         })
     }
-
 
     /**
      * 注册插件加载器
      * @param name
      * @param loader
-     * @constructor
      */
     protected RegPlugin(name: string, loader: MiniGameTypes.PluginLoder) {
         this._loaders[name] = loader
@@ -268,7 +270,6 @@ export class CoreSDK {
      * 消息推送
      * @param name
      * @param result
-     * @constructor
      */
     public Publish(name: string, result: MiniGameTypes.Result) {
         this._Publish(`USER.${name.toLowerCase()}`, result)
@@ -278,7 +279,6 @@ export class CoreSDK {
      * 注册用户钩子
      * @param name  name会调用toLowerCase,请使用小写与逗号组合
      * @param callback
-     * @constructor
      */
     public RegHook(name: string, callback: MiniGameTypes.HandlerResult) {
         this._RegHook(`USER.${name.toLowerCase()}`, callback)
@@ -293,7 +293,7 @@ export class CoreSDK {
         if (!this._hooks[name]) {
             this._hooks[name] = []
         }
-        log.info('register hook: ', name)
+        log.info("register hook: ", name)
         this._hooks[name].push(callback)
     }
 
@@ -301,7 +301,6 @@ export class CoreSDK {
      * 消息推送
      * @param name
      * @param result
-     * @constructor
      */
     protected _Publish(name: string, result: MiniGameTypes.Result) {
         const handlers = this._hooks[name]
@@ -318,7 +317,7 @@ export class CoreSDK {
     private _LoadPlugins(): void {
         const plugins = this.app.plugins
         if (!plugins || plugins.length === 0) {
-            return;
+            return
         }
         plugins.forEach(cfg => {
             if (cfg.disabled) return
@@ -328,10 +327,10 @@ export class CoreSDK {
                 log.error("plugin loader is missing: ", cfg.name)
                 this._Publish(consts.ErrHooks.plugin, {
                     code: consts.ErrCodeInitialize,
-                    trigger: 'plugin.missing',
-                    payload: cfg.name
-                });
-                return;
+                    trigger: "plugin.missing",
+                    payload: cfg.name,
+                })
+                return
             }
             try {
                 const plugin = new CLS(cfg, this)
@@ -341,9 +340,9 @@ export class CoreSDK {
                 log.debug("plugin error: ", e)
                 this._Publish(consts.ErrHooks.plugin, {
                     code: consts.ErrCodeInitialize,
-                    trigger: 'plugin.load',
-                    payload: e
-                });
+                    trigger: "plugin.load",
+                    payload: e,
+                })
             }
         })
     }
@@ -351,7 +350,6 @@ export class CoreSDK {
     /**
      * 新建一个Observable
      * @param key
-     * @constructor
      * @protected
      */
     protected _Subscribe(key: string): Promise<MiniGameTypes.Result> {
@@ -381,7 +379,6 @@ export class CoreSDK {
         return true
     }
 
-
     /**
      * 初始化对象插入(避免多次调用)
      * @param initializers
@@ -399,33 +396,37 @@ export class CoreSDK {
      */
     protected _WaitInit(): Promise<MiniGameTypes.Results> {
         if (!this._initializes) {
-            this._initializes = this._initializations.length === 0 ? new Promise<MiniGameTypes.Results>(resolve => {
-                resolve(NewResults("initializer"))
-            }) : Promise.all(this._initializations).then(results => {
-                // 初始化app对象
-                results.some(result => {
-                    if (result.trigger === consts.AppInitialize) {
-                        this._app = result.payload
-                        return true; // 结束 some 循环
-                    }
-                    return false;
-                });
-                // 初始化插件
-                const r = NewResults("initializer", results)
-                if (r.failure > 0) {
-                    this._Publish(consts.ErrHooks.initialize, {
-                        code: consts.ErrCodeInitialize, trigger: 'core.wait.init',
-                        payload: r.errors
-                    });
-                }
-                this._LoadPlugins()
-                if (this._plugins.length > 0) {
-                    this._plugins.forEach(p => {
-                        p.AfterInitialize(r)
-                    })
-                }
-                return r
-            })
+            this._initializes =
+                this._initializations.length === 0
+                    ? new Promise<MiniGameTypes.Results>(resolve => {
+                          resolve(NewResults("initializer"))
+                      })
+                    : Promise.all(this._initializations).then(results => {
+                          // 初始化app对象
+                          results.some(result => {
+                              if (result.trigger === consts.AppInitialize) {
+                                  this._app = result.payload
+                                  return true // 结束 some 循环
+                              }
+                              return false
+                          })
+                          // 初始化插件
+                          const r = NewResults("initializer", results)
+                          if (r.failure > 0) {
+                              this._Publish(consts.ErrHooks.initialize, {
+                                  code: consts.ErrCodeInitialize,
+                                  trigger: "core.wait.init",
+                                  payload: r.errors,
+                              })
+                          }
+                          this._LoadPlugins()
+                          if (this._plugins.length > 0) {
+                              this._plugins.forEach(p => {
+                                  p.AfterInitialize(r)
+                              })
+                          }
+                          return r
+                      })
         }
         return this._initializes
     }
@@ -454,28 +455,34 @@ export class CoreSDK {
      * @param callback
      * @protected
      */
-    protected _RefreshToken(params: Record<string, any>, user: MiniGameTypes.User, callback?: MiniGameTypes.HandlerResult) {
+    protected _RefreshToken(
+        params: Record<string, any>,
+        user: MiniGameTypes.User,
+        callback?: MiniGameTypes.HandlerResult
+    ) {
         if (!this.authenticated) return
         const handler = this.handlers[consts.TimerTokenRefresh]
         if (!handler) return
-        handler({params, user}, callback ?? NoneHandlerResult)
+        handler({ params, user }, callback ?? NoneHandlerResult)
     }
-
 
     /**
      * 重上报触发
      * @param payload
-     * @constructor
      */
-    protected _RetryReport(payload: { user?: MiniGameTypes.User, role?: MiniGameTypes.GameRole }) {
+    protected _RetryReport(payload: { user?: MiniGameTypes.User; role?: MiniGameTypes.GameRole }) {
         Object.keys(this._trackers).forEach(key => {
             const tracker = this._trackers[key]
             tracker.Retry(payload)
         })
     }
 
-    private _HandlerTrace(method: string, authenticated: boolean,
-                          options: Record<string, any>, callback?: MiniGameTypes.HandlerResults) {
+    private _HandlerTrace(
+        method: string,
+        authenticated: boolean,
+        options: Record<string, any>,
+        callback?: MiniGameTypes.HandlerResults
+    ) {
         const trigger = `core.sdk.${method}`
         const cb = callback ?? NoneHandlerResults
         if (authenticated) {
@@ -484,7 +491,7 @@ export class CoreSDK {
                     failure: -1,
                     trigger: `${trigger}.UnAuthenticated`,
                     success: [],
-                    errors: []
+                    errors: [],
                 })
                 return
             }
@@ -494,28 +501,29 @@ export class CoreSDK {
         Object.keys(this._trackers).forEach(name => {
             const tracker = this._trackers[name]
             log.debug(`tracer: '${name}' call: '${method}'`)
-            promises.push(new Promise(resolve => {
-                // @ts-ignore
-                const fn = tracker[method]
-                if (!fn) {
-                    resolve({
-                        code: consts.ErrCodeNotFound, trigger: name,
-                        payload: `method:${method} not found from tracker: ${name}`
-                    })
-                    return
-                }
-                fn.call(tracker, options, (res: MiniGameTypes.Result) => resolve(res))
-            }))
+            promises.push(
+                new Promise(resolve => {
+                    // @ts-ignore
+                    const fn = tracker[method]
+                    if (!fn) {
+                        resolve({
+                            code: consts.ErrCodeNotFound,
+                            trigger: name,
+                            payload: `method:${method} not found from tracker: ${name}`,
+                        })
+                        return
+                    }
+                    fn.call(tracker, options, (res: MiniGameTypes.Result) => resolve(res))
+                })
+            )
         })
         if (promises.length <= 0) {
             cb(NewResults(trigger))
         }
         Promise.all(promises).then(results => {
-                cb(NewResults(trigger, results))
-            }
-        )
+            cb(NewResults(trigger, results))
+        })
     }
-
 
     /* -------登录--------- */
 
@@ -528,79 +536,114 @@ export class CoreSDK {
             callback({
                 code: consts.CodeSuccess,
                 trigger: "already.login",
-                payload: this.user
+                payload: this.user,
             })
             return
         }
-        this._WaitInit().then(
-            initializations => {
-                if (initializations.failure !== 0) {
-                    log.error("initialization failure count: ", initializations.failure)
-                    callback({
-                        code: consts.ErrCodeInitialize,
-                        trigger: initializations.trigger,
-                        payload: initializations
-                    })
+        this._WaitInit().then(initializations => {
+            if (initializations.failure !== 0) {
+                log.error("initialization failure count: ", initializations.failure)
+                const lErr = {
+                    code: consts.ErrCodeInitialize,
+                    trigger: initializations.trigger,
+                    payload: initializations,
+                }
+                callback(lErr)
+                this._Publish(consts.ErrHooks.login, lErr)
+                return
+            }
+            const handler = this.handlers[consts.HandlerAuthenticate]
+            if (!handler) {
+                callback({
+                    code: consts.ErrCodeHandlerNotFound,
+                    trigger: "authenticate.handler",
+                    payload: "handler not found",
+                })
+            }
+            handler(params, result => {
+                if (result.code !== consts.CodeSuccess) {
+                    callback(result)
+                    this._Publish(consts.ErrHooks.login, result)
                     return
                 }
-                const handler = this.handlers[consts.HandlerAuthenticate]
-                if (!handler) {
-                    callback({code: consts.ErrCodeSDK, trigger: "sdk.login", payload: "authenticate handler not found"})
-                }
-                handler(params, result => {
-                    if (result.code !== consts.CodeSuccess) {
-                        this._Publish(consts.ErrHooks.login, result);
-                        callback(result)
+                log.info("authenticate success")
+                log.debug("authenticate payload: ", result.payload)
+                // 认证后调用
+                // eslint-disable-next-line no-restricted-syntax
+                for (const h of this._after_authenticate) {
+                    try {
+                        h(result.payload)
+                    } catch (e) {
+                        const lErr = { code: consts.ErrCodeSDK, trigger: "authenticate.hook", payload: e }
+                        callback(lErr)
+                        this._Publish(consts.ErrHooks.login, lErr)
                         return
                     }
-                    log.info("authenticate success")
-                    log.debug("authenticate payload: ", result.payload)
-                    this._after_authenticate.forEach(h => h(result.payload))
-                    // 认证完成追踪
-                    this.PushEvent("login.authenticate", result.payload)
-                    const _handler = this.handlers[consts.HandlerLogin]
-                    if (!handler) {
-                        callback({code: consts.ErrCodeSDK, trigger: "login", payload: "login handler not found"})
+                }
+                // 认证完成追踪
+                this.PushEvent("login.authenticate", result.payload)
+                const _handler = this.handlers[consts.HandlerLogin]
+                if (!handler) {
+                    callback({
+                        code: consts.ErrCodeHandlerNotFound,
+                        trigger: "login.handler",
+                        payload: "handler not found",
+                    })
+                }
+                _handler(result.payload, logged => {
+                    if (logged.code !== consts.CodeSuccess) {
+                        this._Publish(consts.ErrHooks.login, logged)
+                        callback(logged)
+                        return
                     }
-                    _handler(result.payload, logged => {
-                        if (logged.code !== consts.CodeSuccess) {
-                            this._Publish(consts.ErrHooks.login, logged);
-                            callback(logged)
+                    const user: MiniGameTypes.User = logged.payload
+                    log.info("login success")
+                    log.debug("login payload: ", user)
+                    // 设置用户
+                    this._user = user
+                    // 登录后调用
+                    // eslint-disable-next-line no-restricted-syntax
+                    for (const h of this._after_login) {
+                        try {
+                            h(user)
+                        } catch (e) {
+                            const lErr = { code: consts.ErrCodeSDK, trigger: "login.hook", payload: e }
+                            callback(lErr)
+                            this._Publish(consts.ErrHooks.login, lErr)
                             return
                         }
-                        const user: MiniGameTypes.User = logged.payload
-                        log.info("login success")
-                        log.debug("login payload: ", user)
-                        // 设置用户
-                        this._user = user
-                        // 登录后调用
-                        this._after_login.forEach(h => h(user))
-                        // 重上报调用
-                        this._RetryReport({user})
-                        // 插件登录后
-                        if (this._plugins.length > 0) {
-                            this._plugins.forEach(p => p.AfterLogin(user))
+                    }
+                    // 重上报调用
+                    this._RetryReport({ user })
+                    // 插件登录后
+                    // eslint-disable-next-line no-restricted-syntax
+                    for (const p of this._plugins) {
+                        try {
+                            p.AfterLogin(user)
+                        } catch (e) {
+                            const lErr = { code: consts.ErrCodeSDK, trigger: "login.plugin.hook", payload: e }
+                            callback(lErr)
+                            this._Publish(consts.ErrHooks.login, lErr)
+                            return
                         }
-                        // 用户登录追踪
-                        if (user.registered) {
-                            this.UserLogin(user)
-                        } else {
-                            this.UserCreate()
-                        }
+                    }
+                    // 用户登录追踪
+                    if (user.registered) {
+                        this.UserLogin(user)
+                    } else {
+                        this.UserCreate()
+                    }
 
-                        callback({
-                            code: consts.CodeSuccess,
-                            trigger: "login.sdk",
-                            payload: user
-                        })
-                        // 启动token刷新定时器
-                        this._StartTimer(consts.TimerTokenRefresh, params)
+                    callback({
+                        code: consts.CodeSuccess,
+                        trigger: "login.sdk",
+                        payload: user,
                     })
-
+                    // 启动token刷新定时器
+                    this._StartTimer(consts.TimerTokenRefresh, params)
                 })
-
-            }
-        )
+            })
+        })
     }
 
     /* -------支付--------- */
@@ -612,24 +655,23 @@ export class CoreSDK {
      * @param callback
      */
     Pay(order: MiniGameTypes.GameOrder, params: Record<string, any>, callback: MiniGameTypes.HandlerResult) {
-
         if (!this.authenticated) {
-            this._Publish(consts.ErrHooks.pay, {code: consts.ErrCodeUnAuthenticate, trigger: 'pay', payload: order});
+            this._Publish(consts.ErrHooks.pay, { code: consts.ErrCodeUnAuthenticate, trigger: "pay", payload: order })
             callback({
                 code: consts.ErrCodeUnAuthenticate,
                 trigger: "user.null",
-                payload: "not login"
+                payload: "not login",
             })
             return
         }
         const selector = this.handlers[consts.HandlerPayMethods]
         if (!selector) {
-            callback({code: consts.ErrCodeSDK, trigger: "pay", payload: "pay handler not found"})
+            callback({ code: consts.ErrCodeSDK, trigger: "pay", payload: "pay handler not found" })
         }
         const user = this.user
-        selector({order, params, user}, result => {
+        selector({ order, params, user }, result => {
             if (result.code !== consts.CodeSuccess) {
-                this._Publish(consts.ErrHooks.pay, result);
+                this._Publish(consts.ErrHooks.pay, result)
                 log.error("get payment methods failed: ", result.trigger)
                 log.debug("get payment response: ", result.payload)
                 callback(result)
@@ -639,24 +681,24 @@ export class CoreSDK {
             log.debug("pay with handler: ", trigger)
             const submit = this.handlers[trigger]
             if (!submit) {
-                const res = {code: consts.ErrCodeHandlerNotFound, trigger: 'pay.methods', payload: result}
-                this._Publish(consts.ErrHooks.pay, res);
+                const res = { code: consts.ErrCodeHandlerNotFound, trigger: "pay.methods", payload: result }
+                this._Publish(consts.ErrHooks.pay, res)
                 log.error("pay handler: ", trigger, ", not found")
                 callback(res)
                 return
             }
-            submit({order, params, user, payment: result.payload}, res => {
+            submit({ order, params, user, payment: result.payload }, res => {
                 if (res.code !== consts.CodeSuccess) {
-                    this._Publish(consts.ErrHooks.pay, res);
+                    this._Publish(consts.ErrHooks.pay, res)
                 } else {
-                    this._Publish(consts.HookPayed,
-                        {
-                            code: consts.CodeSuccess, trigger: res.trigger,
-                            payload: {
-                                request: {order, params, user, payment: result.payload},
-                                response: res.payload
-                            }
-                        })
+                    this._Publish(consts.HookPayed, {
+                        code: consts.CodeSuccess,
+                        trigger: res.trigger,
+                        payload: {
+                            request: { order, params, user, payment: result.payload },
+                            response: res.payload,
+                        },
+                    })
                 }
                 callback(res)
             })
@@ -671,26 +713,75 @@ export class CoreSDK {
      */
     public ValidateText(content: string, options: Record<string, any>, callback: MiniGameTypes.HandlerResult) {
         if (!this.authenticated) {
-            callback({code: consts.ErrCodeUnAuthenticate, trigger: 'validate.text', payload: content})
+            callback({ code: consts.ErrCodeUnAuthenticate, trigger: "validate.text", payload: content })
             return
         }
-        this.Call(consts.HandlerText, {content, options, user: this.user}, callback)
+        this.Call(consts.HandlerText, { content, options, user: this.user }, callback)
     }
 
+    /**
+     * 校验媒体
+     * @param uri   rfc3986   e.g  https://path.jpg file:///var/1.png
+     * @param options
+     * @param callback
+     */
+    public ValidateMedia(uri: URIComponent, options: Record<string, any>, callback: MiniGameTypes.HandlerResult) {
+        if (!this.authenticated) {
+            callback({ code: consts.ErrCodeUnAuthenticate, trigger: "validate.media", payload: uri.path })
+            return
+        }
+        const paths = uri.path ? uri.path.split("/").filter(segment => segment.length > 0) : null
+        if (!paths) {
+            callback({ code: consts.ErrCodeParameters, trigger: "validate.media", payload: "path not found from uri" })
+            return
+        }
+        const file = paths[paths.length - 1]
+        if (
+            !FileTypeMatch(file, consts.VideoExtensions) &&
+            !FileTypeMatch(file, consts.AudioExtensions) &&
+            !FileTypeMatch(file, consts.MediaExtensions) &&
+            file.split(".").length === 0
+        ) {
+            callback({ code: consts.ErrCodeParameters, trigger: "validate.media", payload: "path not media file" })
+            return
+        }
+        this.Call(consts.HandlerMedia, { uri, options, user: this.user }, callback)
+    }
+
+    /**
+     * 校验图片
+     * @param uri   rfc3986   e.g  https://path.jpg file:///var/1.png
+     * @param options
+     * @param callback
+     */
+    public ValidateImg(uri: URIComponent, options: Record<string, any>, callback: MiniGameTypes.HandlerResult) {
+        if (!this.authenticated) {
+            callback({ code: consts.ErrCodeUnAuthenticate, trigger: "validate.image", payload: uri.path })
+            return
+        }
+        const paths = uri.path ? uri.path.split("/").filter(segment => segment.length > 0) : null
+        if (!paths) {
+            callback({ code: consts.ErrCodeParameters, trigger: "validate.image", payload: "path not found from uri" })
+            return
+        }
+        const file = paths[paths.length - 1]
+        if (!FileTypeMatch(file, consts.ImageExtensions) && file.split(".").length === 0) {
+            callback({ code: consts.ErrCodeParameters, trigger: "validate.image", payload: "path not image file" })
+            return
+        }
+        this.Call(consts.HandlerImage, { uri, options, user: this.user }, callback)
+    }
 
     /* ------------ 上报 ------------ */
-
 
     /**
      * 无需登录可上报事件
      * @param event
      * @param params
      * @param callback
-     * @constructor
      */
-    PushEvent(event: string, params?: Record<string, any> | null,
-              callback?: MiniGameTypes.HandlerResults): void {
-        this._HandlerTrace("PushEvent", false, {event, params}, callback)
+    PushEvent(event: string, params?: Record<string, any> | null, callback?: MiniGameTypes.HandlerResults): void {
+        this._HandlerTrace("PushEvent", false, { event, params }, callback)
     }
 
     /**
@@ -708,7 +799,7 @@ export class CoreSDK {
      * @param callback
      */
     protected UserLogin(user: MiniGameTypes.User, callback?: MiniGameTypes.HandlerResults): void {
-        this._HandlerTrace("UserLogin", false, {user}, callback)
+        this._HandlerTrace("UserLogin", false, { user }, callback)
     }
 
     /**
@@ -728,9 +819,8 @@ export class CoreSDK {
      * @param params
      * @param callback
      */
-    UserEvent(event: string, params?: Record<string, any> | null,
-              callback?: MiniGameTypes.HandlerResults): void {
-        this._HandlerTrace("UserEvent", true, {event, params}, callback)
+    UserEvent(event: string, params?: Record<string, any> | null, callback?: MiniGameTypes.HandlerResults): void {
+        this._HandlerTrace("UserEvent", true, { event, params }, callback)
     }
 
     /**
@@ -740,11 +830,14 @@ export class CoreSDK {
      * @param params
      * @param callback
      */
-    UserRecharged(id: string, payment: MiniGameTypes.Payment, params: Record<string, any>,
-                  callback?: MiniGameTypes.HandlerResults): void {
-        this._HandlerTrace("UserRecharged", true, {id, params, payment}, callback)
+    UserRecharged(
+        id: string,
+        payment: MiniGameTypes.Payment,
+        params: Record<string, any>,
+        callback?: MiniGameTypes.HandlerResults
+    ): void {
+        this._HandlerTrace("UserRecharged", true, { id, params, payment }, callback)
     }
-
 
     /**
      * 角色登录追踪(必须完成用户登录)
@@ -752,7 +845,7 @@ export class CoreSDK {
      * @param callback
      */
     RoleLogin(role: MiniGameTypes.GameRole, callback?: MiniGameTypes.HandlerResults): void {
-        this._HandlerTrace("RoleLogin", true, {role}, callback)
+        this._HandlerTrace("RoleLogin", true, { role }, callback)
     }
 
     /**
@@ -761,7 +854,7 @@ export class CoreSDK {
      * @param callback
      */
     RoleCreate(role: MiniGameTypes.GameRole, callback?: MiniGameTypes.HandlerResults): void {
-        this._HandlerTrace("RoleCreate", true, {role}, callback)
+        this._HandlerTrace("RoleCreate", true, { role }, callback)
     }
 
     /**
@@ -771,7 +864,7 @@ export class CoreSDK {
      * @param callback
      */
     RoleUpLevel(role: MiniGameTypes.GameRole, level: number, callback?: MiniGameTypes.HandlerResults): void {
-        this._HandlerTrace("RoleUpLevel", true, {role, level}, callback)
+        this._HandlerTrace("RoleUpLevel", true, { role, level }, callback)
     }
 
     /**
@@ -782,9 +875,14 @@ export class CoreSDK {
      * @param params
      * @param callback
      */
-    RoleRecharged(id: string, order: MiniGameTypes.GameOrder, payment: MiniGameTypes.Payment, params: Record<string, any>,
-                  callback?: MiniGameTypes.HandlerResults): void {
-        this._HandlerTrace("RoleRecharged", true, {id, params, order, payment}, callback)
+    RoleRecharged(
+        id: string,
+        order: MiniGameTypes.GameOrder,
+        payment: MiniGameTypes.Payment,
+        params: Record<string, any>,
+        callback?: MiniGameTypes.HandlerResults
+    ): void {
+        this._HandlerTrace("RoleRecharged", true, { id, params, order, payment }, callback)
     }
 
     /**
@@ -794,9 +892,12 @@ export class CoreSDK {
      * @param params
      * @param callback
      */
-    RoleEvent(event: string, role: MiniGameTypes.GameRole, params?: Record<string, any> | null,
-              callback?: MiniGameTypes.HandlerResults): void {
-        this._HandlerTrace("RoleEvent", true, {role, event, params}, callback)
+    RoleEvent(
+        event: string,
+        role: MiniGameTypes.GameRole,
+        params?: Record<string, any> | null,
+        callback?: MiniGameTypes.HandlerResults
+    ): void {
+        this._HandlerTrace("RoleEvent", true, { role, event, params }, callback)
     }
-
 }
