@@ -636,7 +636,7 @@ export class CoreSDK {
 
                     const success = { code: consts.CodeSuccess, trigger: "login.sdk", payload: user }
 
-                    this.Call(consts.HandlerShowLoginDialog, { user: user, options: params }, dialog => {
+                    this.Call(consts.HandlerLoadLoginDialog, { user: user, options: params }, dialog => {
                         if (dialog.code === consts.ErrCodeHandlerNotFound && dialog.trigger === consts.ErrSDK.call) {
                             log.debug("login dialog handler found")
                             callback(success)
