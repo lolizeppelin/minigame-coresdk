@@ -24,9 +24,14 @@ export const HandlerMedia = "handler.image"
 export const HandlerImage = "handler.media"
 
 /**
- * 登录确认弹窗
+ * 获取弹窗数据
  */
-export const HandlerLoginConfirmDialog = "handler.login.confirm.dialog"
+export const HandlerLoadLoginDialog = "load.login.dialog"
+
+/**
+ * 显示弹窗
+ */
+export const HandlerShowLoginDialog = "show.login.dialog"
 
 export const HandlerPayMethods = "handler.pay.methods" // 支付方式
 
@@ -59,6 +64,12 @@ export const ErrHooks = {
     plugin: "SYS,error.plugin",
     login: "SYS.error.login",
     pay: "SYS.error.pay",
+}
+
+export const ErrSDK = {
+    call : "sdk.handler.call",
+    pexecute : "sdk.plugin.execute",
+    pcall : "sdk.plugin.call",
 }
 
 /**

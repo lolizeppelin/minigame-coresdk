@@ -192,7 +192,7 @@ export class CoreSDK {
     protected Call(name: string, params: any, callback?: MiniGameTypes.HandlerResult) {
         const handler = this.handlers[name]
         if (!handler && callback) {
-            callback({ code: consts.ErrCodeHandlerNotFound, trigger: "sdk.handler.call", payload: name })
+            callback({ code: consts.ErrCodeHandlerNotFound, trigger: consts.ErrSDK.call, payload: name })
             return
         }
         handler && handler(params, callback ?? NoneHandlerResult)
@@ -210,13 +210,13 @@ export class CoreSDK {
                 try {
                     return p.Execute(params)
                 } catch (e) {
-                    return { code: consts.ErrUnknown, trigger: "plugin.execute.exc", payload: e }
+                    return { code: consts.ErrUnknown, trigger: consts.ErrSDK.pexecute, payload: e }
                 }
             }
         }
         return {
             code: consts.ErrCodeHandlerNotFound,
-            trigger: "plugin.execute.notfound",
+            trigger: consts.ErrSDK.pexecute,
             payload: `plugin ${plugin} not found or disabled`,
         }
     }
@@ -235,13 +235,13 @@ export class CoreSDK {
                     p.Call(params, callback)
                     return
                 } catch (e) {
-                    callback({ code: consts.ErrUnknown, trigger: "plugin.call.exc", payload: e })
+                    callback({ code: consts.ErrUnknown, trigger: consts.ErrSDK.pcall, payload: e })
                 }
             }
         }
         callback({
             code: consts.ErrCodeHandlerNotFound,
-            trigger: "plugin.call.notfound",
+            trigger: consts.ErrSDK.pcall,
             payload: `plugin ${plugin} not found or disabled`,
         })
     }
@@ -634,12 +634,33 @@ export class CoreSDK {
                         this.UserCreate()
                     }
 
-                    callback({
-                        code: consts.CodeSuccess,
-                        trigger: "login.sdk",
-                        payload: user,
-                    })
+                    const success = { code: consts.CodeSuccess, trigger: "login.sdk", payload: user }
 
+                    this.Call(consts.HandlerShowLoginDialog, { user: user, options: params }, dialog => {
+                        if (dialog.code === consts.ErrCodeHandlerNotFound && dialog.trigger === consts.ErrSDK.call) {
+                            log.debug("login dialog handler found")
+                            callback(success)
+                            return
+                        }
+                        if (dialog.code !== consts.CodeSuccess) {
+                            callback(dialog)
+                            this._Publish(consts.ErrHooks.login, dialog)
+                            return
+                        }
+                        if (!dialog.payload) {
+                            callback(success)
+                            return
+                        }
+                        log.debug("showing login dialog")
+                        this.Call(consts.HandlerShowLoginDialog, { dialog: dialog.payload, user: user }, show => {
+                            if (show.code !== consts.CodeSuccess) {
+                                callback(show)
+                                this._Publish(consts.ErrHooks.login, show)
+                                return
+                            }
+                            callback(success)
+                        })
+                    })
                     // 启动token刷新定时器
                     this._StartTimer(consts.TimerTokenRefresh, params)
                 })
