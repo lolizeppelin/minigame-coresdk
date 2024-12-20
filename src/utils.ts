@@ -2,7 +2,6 @@
 
 import log from "loglevel"
 import base64url from "base64url"
-import { Schema, Validator, ValidatorResult } from 'jsonschema'
 import { Md5 } from "ts-md5"
 import { sha1 } from "js-sha1"
 import fastURI, { Options as URIOpts, URIComponent } from 'fast-uri'
@@ -234,19 +233,6 @@ export function RandomBaseString(length: number): string {
         result += BaseCharacters.charAt(Math.floor(Math.random() * charactersLength))
     }
     return result
-}
-
-
-/**
- * 校验json
- * @param schema
- * @param payload
- * @param required  允许空
- */
-export function ValidateJson(schema: Schema, payload: Record<string, any> | undefined,
-                             required?: boolean): ValidatorResult {
-    const v = new Validator();
-    return v.validate(payload, schema, {required: required ?? true})
 }
 
 
