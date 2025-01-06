@@ -629,9 +629,9 @@ export class CoreSDK {
                     }
                     // 用户登录追踪
                     if (user.registered) {
-                        this.UserLogin(user)
-                    } else {
                         this.UserCreate()
+                    } else {
+                        this.UserLogin(user)
                     }
 
                     const success = { code: consts.CodeSuccess, trigger: "login.sdk", payload: user }
