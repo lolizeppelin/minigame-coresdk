@@ -519,6 +519,7 @@ export class CoreSDK {
         })
         if (promises.length <= 0) {
             cb(NewResults(trigger))
+            return
         }
         Promise.all(promises).then(results => {
             cb(NewResults(trigger, results))
