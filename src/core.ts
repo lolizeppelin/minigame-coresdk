@@ -68,9 +68,7 @@ export class CoreSDK {
             url: "",
             path: "",
         },
-        callback: _ => {
-            /** empty **/
-        },
+        callback: NoneHandlerResult,
     }
 
     /**
