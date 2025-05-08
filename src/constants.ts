@@ -37,6 +37,12 @@ export const HandlerPayMethods = "handler.pay.methods" // 支付方式
 
 export const HookPayed = "handler.payed" // 支付方式
 
+export const PhoneBondingStatus = "phone.bonding.status" // 支付方式
+
+export const BindPhone = "bond.phone" // 支付方式
+
+export const SendSMS = "send.sms" // 支付方式
+
 /**
  * 常用图像文件后缀
  */

@@ -921,4 +921,45 @@ export class CoreSDK {
     ): void {
         this._HandlerTrace("RoleEvent", true, { role, event, params }, callback)
     }
+
+    /**
+     * 手机绑定状态
+     */
+    public PhoneBounding(callback: MiniGameTypes.HandlerResult) {
+        if (!this.authenticated) {
+            callback({ code: consts.ErrCodeUnAuthenticate, trigger: consts.SendSMS, payload: "authenticate required" })
+            return
+        }
+        this.Call(consts.PhoneBondingStatus, null, callback)
+    }
+
+    /**
+     * 发送短信
+     * @param param phone:电话号码
+     * @param callback
+     */
+    public SendSMS(param: { phone: string; content?: string }, callback: MiniGameTypes.HandlerResult) {
+        if (!this.authenticated) {
+            callback({ code: consts.ErrCodeUnAuthenticate, trigger: consts.SendSMS, payload: "authenticate required" })
+            return
+        }
+        this.Call(consts.SendSMS, param, callback)
+    }
+
+    /**
+     * 绑定手机
+     * @param param phone:'电话号码',code:'短信码'
+     * @param callback
+     */
+    public BindPhone(param: { phone: string; code: string }, callback: MiniGameTypes.HandlerResult) {
+        if (!this.authenticated) {
+            callback({
+                code: consts.ErrCodeUnAuthenticate,
+                trigger: consts.BindPhone,
+                payload: "authenticate required",
+            })
+            return
+        }
+        this.Call(consts.BindPhone, param, callback)
+    }
 }
