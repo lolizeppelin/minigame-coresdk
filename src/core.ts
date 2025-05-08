@@ -528,9 +528,9 @@ export class CoreSDK {
 
     /**
      * 登录
-     * 登录成功时, callback返回值中的payload结构为User
+     * 登录成功时, code未0
      */
-    Login(params: Record<string, any>, callback: MiniGameTypes.HandlerResult) {
+    Login(params: Record<string, any>, callback: MiniGameTypes.HandlerLoginResult) {
         if (this.authenticated) {
             callback({
                 code: consts.CodeSuccess,
@@ -815,7 +815,7 @@ export class CoreSDK {
     }
 
     /**
-     * 用户登录追踪
+     * 用户登录追踪,正常情况下这个接口不需要主动调用
      * @param user
      * @param callback
      */
@@ -824,7 +824,7 @@ export class CoreSDK {
     }
 
     /**
-     * 用户登出追踪(必须完成用户登录)
+     * 用户登出追踪(必须完成用户登录),正常情况下这个接口不需要主动调用
      * @param role
      * @param callback
      */
